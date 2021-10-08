@@ -1,26 +1,10 @@
+import { Http2ServerResponse } from "http2";
+
 const http = require("http");
 const fs = require('fs');
 
-class Router{
-    _main:String;
-    _subRoutes: object[];
-
-    constructor(main: string){
-        this._main = main;
-        this._subRoutes = []
-    
-    }
-    addroute(route:string, routeFunc: Function, methods:string[]= ["GET"]){
-        const newRoute:any= {
-                        route:route,
-                        routeFunc:routeFunc,
-                        methods:methods
-                    }
-        this._subRoutes.push(newRoute);
-    }
-}
-
-class route{
+class Route{
+    route:string;
     routes:string[];
     func: Function;
     methods: string[];
@@ -28,7 +12,7 @@ class route{
     dynamicIdx: number[]
 
     constructor(route: string,func:Function = ()=>{}, methods:string[] = ["GET"]){
-
+    this.route = route
     this.routes = route.split('/');
     this.func = func
     this.methods = methods;
@@ -44,6 +28,26 @@ class route{
 }
 
 }
+class Router{
+    _main:string;
+    _subRoutes: string[];
+    _subRouteObjs: any;
+    _mainfunc: Function;
+    constructor(main: string,mainFunc:Function){
+        this._main = main;
+        this._mainfunc = mainFunc;
+        this._subRoutes = []
+        this._subRouteObjs = {};
+    
+    }
+    addroute(route:string, routeFunc: Function, methods:string[]= ["GET"]){
+        route = this._main + route
+        const newRoute:any= new Route(route, routeFunc, methods)
+        this._subRoutes.push(route);
+        this._subRouteObjs[route] = newRoute;
+    }
+}
+  
 
 class Neutrino{
     _server;
@@ -57,7 +61,7 @@ class Neutrino{
         this._port   = port;
         this._routes = [];
         this._routesobjs = {
-                            '/': new route('/',(req:any,res:any)=>{res.write("<h1>Neutrino</h1>")})
+                            '/': new Route('/',(req:any,res:any)=>{res.write("<h1>Neutrino</h1>")})
                         }
         
         this._default404 = `    <div style=" display: flex;
@@ -79,14 +83,15 @@ class Neutrino{
     }
     addroute(url: string, routeFunc:Function,methods: string[]= ["GET"]):void{
         
-        const currentRoute =   new route(url,routeFunc,methods);
+        const currentRoute =   new Route(url,routeFunc,methods);
 
 
         if(currentRoute.dynamic){
 
-            const urlBeforeDynamic = url.split("/<")[0];
+            const urlBeforeDynamic = url.split("/<")[0] + '/<';
             this._routes.push(urlBeforeDynamic)
             this._routesobjs[urlBeforeDynamic] = currentRoute;
+
 
         }else{
             this._routesobjs[url] = currentRoute;
@@ -95,19 +100,21 @@ class Neutrino{
 
 
     }
-    // addRouter(router:Router){
+    setRouter(router:Router){
+        this._routes.push(router._main)
+        this._routesobjs[router._main] = new Route(router._main,router._mainfunc)
+        for (let i =0 ; i < router._subRoutes.length; i++){
+            const route = router._subRoutes[i]
+            this.addroute(route,router._subRouteObjs[route].func,router._subRouteObjs[route].methods)
+        
+        }
+    }
+    readhtmlfile(path: string,res:Http2ServerResponse){
 
-    //     for (let i =0 ; i < router._subRoutes.length; i++){
-    //         let routeObj = router._subRoutes[i]
-    //         let route    = router._main + routeObj["route"]
-
-    //         this._routes.push(route)
-    //         this._routesFuncs[route] = routeObj["routeFunc"]
-    //         this._routesMethods[route] = routeObj["methods"]
-    //     }
-    // }
-    readhtmlfile(path: string){
         try{
+            res.writeHead(200, {
+                'Content-Type': 'text/html'
+            });
             const data = fs.readFileSync(path,'utf8')
             return data
         }catch (error){
@@ -116,6 +123,9 @@ class Neutrino{
         
     }
 
+    set404(html:string){
+        this._default404 = html;
+    }
     checkIfDynamic(url:string):any{
         
         if(this._routes.includes(url)){
@@ -124,8 +134,8 @@ class Neutrino{
         for(let idx=url.length-1; idx >=0 ;idx-- ){
             if(url[idx] === '/'){
                 let possibleUrl = url.slice(0,idx)
-                if(this._routes.includes(possibleUrl)){
-                    return [true,possibleUrl]
+                if(this._routes.includes(possibleUrl+'/<')){
+                    return [true,possibleUrl+'/<']
                 }
             }
             }
@@ -143,14 +153,15 @@ class Neutrino{
 
         this._server.on('request', (request:typeof http.request, response:typeof http.request) => {
 
-            const url = request.url;
+            const url:string = request.url;
             const method = request.method;
             console.log("got a " + method + " request on " + url);
             const ifDynamic = this.checkIfDynamic(url);
 
             let urlObj;
             let newUrl = url;
-            if (ifDynamic[0]){
+            const sameUrls = url.localeCompare(ifDynamic[1]) == 0 ? true : false
+            if (ifDynamic[0] ){
                 urlObj = _this._routesobjs[ifDynamic[1]];
                 newUrl = ifDynamic[1]
             }
@@ -165,17 +176,21 @@ class Neutrino{
                     if (urlObj.dynamic){
                         const dynamicPart = url.split("/")[urlObj.dynamicIdx]
                         console.log("dynamic part is", dynamicPart)
-                        urlObj.func(request,response,dynamicPart.slice(1,dynamicPart.length-1))
+                        urlObj.func(request,response,dynamicPart)
                         response.end()
                         console.log("reponse sent")
 
                     }else {
-                    urlObj.Func(request,response)
+                    urlObj.func(request,response)
+                    response.statusCode = 200;
                     response.end()
                     console.log("reponse sent")
                     }
                 }else{
-                    //method noy allowed
+                    response.statusCode =  405
+                    console.log("a "+request.method + " request on "+request.url + " not allowed ")
+                    response.write("method not allowed")
+                    response.end()
                 }
             }else{
                 response.statusCode =  404
@@ -215,9 +230,13 @@ class Neutrino{
 
 
 
-const app = new Neutrino(5000);
-app.addroute("/ali/<hsein>", function (req:any, res:any,hsein:String) {
+var app = new Neutrino(5000);
+let router = new Router('/ali',(req:any,res:any)=>{res.write("hello from my main")})
+router.addroute("/<hsein>", (req:any, res:any, hsein:any) => {
     res.write("<h1>ALi is  here" + hsein + ' </h1>');
 });
-console.log(app._routes)
-app.start()
+router.addroute("/ali",  (req:any, res:any )=> {
+    res.write("<h1>ALi is  here" + "alllllllll" + ' </h1>');
+});
+app.setRouter(router)
+app.start();
