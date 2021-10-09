@@ -1,4 +1,3 @@
-import { Http2ServerResponse } from "http2";
 
 const http = require("http");
 const fs = require('fs');
@@ -9,24 +8,59 @@ class Route{
     func: Function;
     methods: string[];
     dynamic: boolean;
-    dynamicIdx: number[]
+    dynamicIdx: number[];
+    _continue:boolean;
 
     constructor(route: string,func:Function = ()=>{}, methods:string[] = ["GET"]){
-    this.route = route
-    this.routes = route.split('/');
-    this.func = func
-    this.methods = methods;
-    this.dynamic = false; 
-    this.dynamicIdx = []
 
-    for(let idx =0; idx < this.routes.length;idx++ ){
-        if(this.routes[idx][0] == '<'){
-            this.dynamic = true
-            this.dynamicIdx.push(idx)
+        this.route = route
+        this.routes = route.split('/');
+        this.func = func
+        this.methods = methods;
+        this.dynamic = false; 
+        this.dynamicIdx = []
+        this._continue = false;
+
+        for(let idx =0; idx < this.routes.length;idx++ ){
+
+            if(this.routes[idx][0] == '<'){
+                this.dynamic = true
+                this.dynamicIdx.push(idx)
+
+                if (idx != (this.routes.length-1) ){
+                    this._continue = true
+                }
+            }
         }
-    }
 }
 
+}
+class _Response{
+    _req:any
+    constructor(response:any){
+        this._req = response
+    }
+}
+class _Request{
+    _res:any;
+    params:any;
+
+    constructor(request:any){
+        this._res = request;
+        this.params = {};
+
+        let url = this._res.url.split('?');
+
+        if (url[0] != this._res.url){
+            let params = url[1].split('&');
+            for(let param of params){
+
+                let [varName, value] = param.split('=');
+                this.params[varName] = value;
+
+        }}
+
+    }
 }
 class Router{
     _main:string;
@@ -109,7 +143,7 @@ class Neutrino{
         
         }
     }
-    readhtmlfile(path: string,res:Http2ServerResponse){
+    readhtmlfile(path: string,res:any){
 
         try{
             res.writeHead(200, {
@@ -151,9 +185,16 @@ class Neutrino{
         this._server.listen(this._port)
         console.log("Neutrino Server live at https://127.0.0.1:" + this._port)
 
-        this._server.on('request', (request:typeof http.request, response:typeof http.request) => {
+        this._server.on('request', (request:any, response:any) => {
 
-            const url:string = request.url;
+            console.log(typeof request)
+            let url:string = request.url;
+            let possibleParams = url.split('?');
+            const _request = new _Request(request)
+            if(possibleParams[0] != url){
+                url = possibleParams[0];
+            }
+
             const method = request.method;
             console.log("got a " + method + " request on " + url);
             const ifDynamic = this.checkIfDynamic(url);
@@ -161,6 +202,7 @@ class Neutrino{
             let urlObj;
             let newUrl = url;
             const sameUrls = url.localeCompare(ifDynamic[1]) == 0 ? true : false
+
             if (ifDynamic[0] ){
                 urlObj = _this._routesobjs[ifDynamic[1]];
                 newUrl = ifDynamic[1]
@@ -174,17 +216,34 @@ class Neutrino{
 
                 
                     if (urlObj.dynamic){
-                        const dynamicPart = url.split("/")[urlObj.dynamicIdx]
-                        console.log("dynamic part is", dynamicPart)
-                        urlObj.func(request,response,dynamicPart)
-                        response.end()
-                        console.log("reponse sent")
+                        
+                        try{
+                            const dynamicPart = url.split("/")[urlObj.dynamicIdx]
+                            console.log("dynamic part is", dynamicPart)
+                            urlObj.func(_request,response,dynamicPart)
+                            response.statusCode = 200;
+                            response.end()
+                            console.log("reponse sent")
+                        }catch(err){
+
+                            response.statusCode = 500;
+                            response.end()
+                        }
 
                     }else {
-                    urlObj.func(request,response)
-                    response.statusCode = 200;
-                    response.end()
-                    console.log("reponse sent")
+                        try{
+
+                            urlObj.func(_request,response)
+                            response.statusCode = 200;
+                            response.end()
+                            console.log("reponse sent")
+
+                        }catch(err){
+
+                            response.statusCode = 500;
+                            response.end()
+                        }
+                        
                     }
                 }else{
                     response.statusCode =  405
@@ -224,7 +283,7 @@ class Neutrino{
 
 
 
-
+//rember to do asunc
 
 
 
@@ -236,6 +295,7 @@ router.addroute("/<hsein>", (req:any, res:any, hsein:any) => {
     res.write("<h1>ALi is  here" + hsein + ' </h1>');
 });
 router.addroute("/ali",  (req:any, res:any )=> {
+    console.log(req.params["name"])
     res.write("<h1>ALi is  here" + "alllllllll" + ' </h1>');
 });
 app.setRouter(router)
