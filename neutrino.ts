@@ -159,23 +159,88 @@ class _Request{
     }
 }
 class Router{
-    _main:string;
-    _subRoutes: string[];
-    _subRouteObjs: any;
-    _mainfunc: Function;
+    _mainRoute: Route;
 
-    constructor(main: string,mainFunc:Function){
-        this._main = main;
-        this._mainfunc = mainFunc;
-        this._subRoutes = []
-        this._subRouteObjs = {};
-    
+    constructor(mainRoute:string, routeFunc:Function=(req:any,res:any)=>{res.write(page404)},methods:string[]=["GET"]){
+
+        this._mainRoute = new Route(mainRoute,routeFunc,methods)
+
     }
-    addroute(route:string, routeFunc: Function, methods:string[]= ["GET"]){
-        route = this._main + route
-        const newRoute:any= new Route(route, routeFunc, methods)
-        this._subRoutes.push(route);
-        this._subRouteObjs[route] = newRoute;
+    findLastCommon(route:string,mainRoute:Route){
+        let urls  = route.split("/");
+        let curr = mainRoute;
+
+
+        for(let url of urls){
+            url  = '/' + url
+            for(const child of curr.children){
+                if (child.route === url){
+                    curr == child
+                    break
+                }
+            }
+            if(url != curr.route && curr.dynamicRoute != null){
+                curr = curr.dynamicRoute
+            }
+
+        }
+        return curr
+        }
+    
+    continueConstruction(lastRoute:Route,url:string){
+
+        const lastFoundidx = lastRoute.fullName.split('/').length;
+        let urls = url.split('/');
+        urls = urls.splice(lastFoundidx,urls.length);
+        let curr = lastRoute;
+
+        for(const route of urls){
+            if(route[0] == "<"){
+                let newRoute = new Route("/" + route);
+                curr.setDynamicRoute(newRoute)
+                curr = newRoute
+
+            }else{
+                let newRoute = new Route("/" + route);
+                curr.addChild(newRoute);
+                curr = newRoute;
+            }
+        }   
+        return curr
+    }
+    
+    addRoute(url:string,routeFunc:Function,methods:string[]=["GET"]){
+        const urls = url.split('/');
+
+        if(urls.length <= 2 && urls[1][0] == '<'){
+
+            this._mainRoute.dynamicRoute = new Route(urls[1],routeFunc,methods)
+
+        }else if(urls.length <= 2){
+            let newMainRoute = new Route(url,routeFunc,methods);
+            this._mainRoute.addChild(newMainRoute);
+
+        }else{
+            let mainRoute = this._mainRoute;
+        
+            // if (mainRoute != null){
+                let lastCommonRoute = this.findLastCommon(url,mainRoute);
+                let finalRoute = this.continueConstruction(lastCommonRoute,url);
+
+                finalRoute.func = routeFunc
+                finalRoute.methods = methods
+            
+            // }else{
+
+            //     let lastCommonRoute = this.findLastCommon(url,this._mainRoute.dynamicRoute);
+            //     let finalRoute = this.continueConstruction(lastCommonRoute,url);
+
+            //     finalRoute.func = routeFunc
+            //     finalRoute.methods = methods
+            //     this._mainRoute.dynamicRoute.addChild(finalRoute)
+
+            // }
+    }
     }
 }
   
@@ -191,7 +256,7 @@ class Neutrino{
         
         this._server = http.createServer();
         this._port   = port;
-        this._route = new Route('/',(req:any,res:any)=>{res.write("<h1>Neutrino</h1>")});
+        this._route = new Route('',(req:any,res:any)=>{res.write("<h1>Neutrino</h1>")});
         this._mainDynammic = null;
         this._routesobjs = {
                             '/': new Route('/',(req:any,res:any)=>{res.write("<h1>Neutrino</h1>")})
@@ -332,15 +397,10 @@ class Neutrino{
     }
 
     }
-    // setRouter(router:Router){
-    //     this._routes.push(router._main)
-    //     this._routesobjs[router._main] = new Route(router._main,router._mainfunc)
-    //     for (let i =0 ; i < router._subRoutes.length; i++){
-    //         const route = router._subRoutes[i]
-    //         this.addroute(route,router._subRouteObjs[route].func,router._subRouteObjs[route].methods)
-        
-    //     }
-    // }
+    setRouter(router:Router){
+
+        this._route.addChild(router._mainRoute)
+    }
     readhtmlfile(path: string,res:any){
 
         try{
@@ -376,7 +436,6 @@ class Neutrino{
 
 
     // }
-
     start(port: number = this._port) {
         
         let _this = this;
@@ -460,9 +519,6 @@ class Neutrino{
             }
         
           });
-        
-
-    }
 
 
     
@@ -474,21 +530,27 @@ class Neutrino{
 
 
 let app = new Neutrino(5500);
-app.addroute("/<lilo>", (req:any, res:any, dynamicpar:any) => {
-    console.log(dynamicpar,"dynamic part")
-    res.write("<h1>ALi is  here" + dynamicpar["hsein"] + ' </h1>');
-});
-app.addroute("/ali",  (req:any, res:any )=> {
-    res.write("<h1>ALi is  here" + "alllllllll" + ' </h1>');
-});
-app.addroute("/ali/<lilo>",  (req:any, res:any,dynamic:any )=> {
-    res.write("<h1>ALi is  here" + dynamic["lilo"] + ' </h1>');
-});
-app.addroute("/ali/<lilo>/ali",  (req:any, res:any,dynamic:any )=> {
-    res.write("<h1>ALi is  here" + dynamic["lilo"] + "ali" + ' </h1>');
-});
+// app.addroute("/<lilo>", (req:any, res:any, dynamicpar:any) => {
+//     console.log(dynamicpar,"dynamic part")
+//     res.write("<h1>ALi is  here" + dynamicpar["hsein"] + ' </h1>');
+// });
+// app.addroute("/ali",  (req:any, res:any )=> {
+//     res.write("<h1>ALi is  here" + "alllllllll" + ' </h1>');
+// });
+// app.addroute("/ali/<lilo>",  (req:any, res:any,dynamic:any )=> {
+//     res.write("<h1>ALi is  here" + dynamic["lilo"] + ' </h1>');
+// });
+// app.addroute("/ali/<lilo>/ali",  (req:any, res:any,dynamic:any )=> {
+//     res.write("<h1>ALi is  here" + dynamic["lilo"] + "ali" + ' </h1>');
+// });
 
+let router = new Router('ali',(req:any, res:any, dynamicpar:any) => {
+        console.log(dynamicpar,"dynamic part")
+        res.write("<h1>ALi is  here" + dynamicpar["hsein"] + ' </h1>');
+    })
 
-app.start();
+router.addRoute("/<lilo>",(req:any, res:any,dynamic:any )=> {
+        res.write("<h1>ALi is  here" + dynamic["lilo"] + ' </h1>');
+    })
 
-
+app.setRouter(router)
