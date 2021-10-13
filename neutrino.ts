@@ -1,6 +1,23 @@
-
 const http = require("http");
 const fs = require('fs');
+
+let page404 = `    <div style=" display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        width: 100%;
+                        height: 100%;"
+                        >
+                        <div style=" font-size:100px;
+                            display:block;"
+                            >
+                            404
+                            </div>
+                        <br>
+                        <div style="display: block;
+                        font-size:100px;">  
+                        Page Not Found
+                        </div>
+                        </div>` 
 
 class Route{
     parent:any;
@@ -10,9 +27,10 @@ class Route{
     route:string;
     fullName:string;
     dynamic:boolean;
+    dynamicRoute:any;
     // dynamicVar:string;
 
-    constructor(route:string, func:Function,methods:string[]=["GET"]){
+    constructor(route:string, func:Function=(req:any,res:any)=>{res.write(page404)},methods:string[]=["GET"]){
 
         this.parent = null;
         this.children = [];
@@ -20,24 +38,34 @@ class Route{
         this.route = route;
         this.methods = methods;
         this.fullName = route;
-        this.dynamic = route[0] === '<' ? true : false
+        this.dynamic = route[1] === '<' ? true : false
+        this.dynamicRoute= null;
         // this.dynamicVar = [route.slice(2,route.length -1)]
         
 
     }
 
     addChild(child:Route){
-        child.setFullRoute(this.route + child.route)
-        this.children.push(child);
+        if(child.route[1] === '<'){
+            this.dynamicRoute = child;
 
+        }else{
+            child.setParent(this)
+
+           } 
     }
     setParent(parent: Route){
         this.parent = parent;
-        this.setFullRoute(parent.route + this.route)
+        this.setFullRoute(parent.fullName + this.route)
         parent.children.push(this)
     }
     setFullRoute(route:string){
         this.fullName = route;
+    }
+    setDynamicRoute(route:Route){
+        route.parent = this
+        route.setFullRoute(this.fullName + route.route)
+        this.dynamicRoute = route
     }
     bfs(){
         let callStack:any = [this];
@@ -155,7 +183,7 @@ class Router{
 class Neutrino{
     _server;
     _port:number;
-    _routes:any;//fix this to list of routes
+    _route:Route;//fix this to list of routes
     _routesobjs: any;
     _default404:string;
     _mainDynammic:any;
@@ -163,7 +191,7 @@ class Neutrino{
         
         this._server = http.createServer();
         this._port   = port;
-        this._routes = [];
+        this._route = new Route('/',(req:any,res:any)=>{res.write("<h1>Neutrino</h1>")});
         this._mainDynammic = null;
         this._routesobjs = {
                             '/': new Route('/',(req:any,res:any)=>{res.write("<h1>Neutrino</h1>")})
@@ -172,7 +200,7 @@ class Neutrino{
         this._default404 = `    <div style=" display: flex;
                                     justify-content: center;
                                     align-items: center;
-                                    width: 100%;
+                                   width: 100%;
                                     height: 100%;"
                                     >
                                 <div style=" font-size:100px;
@@ -185,76 +213,134 @@ class Neutrino{
                                     font-size:100px;">  
                                 Page Not Found
                                 </div>
-                            </div>`
+                            </div>` 
 
     }
-    findRoute(url:string,runetime:boolean=false){
-        let urls = url.split('/');
-        url = urls[1];
-        if(!runetime){
-            for(const route of this._routes){
-                    if (route.route === url){
-                        return  route
-                    }
+    // findMainRoute(url:string,runetime:boolean=false){
+    //     let urls = url.split('/');
+    //     url = "/" +urls[1];
+    //     if(!runetime){
+    //         for(const route of this._routes){
+    //                 if (route.route === url){
+    //                     return  route
+    //                 }
 
-            } 
-            return null
-        }else{
-            for(const route of this._routes){
-                if (route.route === url){
-                    return  route
+    //         } 
+    //         return null
+    //     }else{
+    //         for(const route of this._routes){
+    //             if (route.route === url){
+    //                 return  route
+    //             }
+
+    //     } 
+    //         return this._mainDynammic
+    //     }
+    // }
+    // this function takes a string path and then find the closeset route in the app routes
+    findLastCommon(route:string,mainRoute:Route){
+        let urls  = route.split("/");
+        let curr = mainRoute;
+
+
+        for(let url of urls){
+            url  = '/' + url
+            for(const child of curr.children){
+                if (child.route === url){
+                    curr == child
+                    break
                 }
-
-        } 
-            return this._mainDynammic
-        }
-    }
-    findMatch(url:string,possibleRoutes:Route[]):any{
-        for(const route of possibleRoutes){
-            if (route.route == url){
-                return route
             }
+            if(url != curr.route && curr.dynamicRoute != null){
+                curr = curr.dynamicRoute
+            }
+
         }
-    }
-    MatchRoute(url:string,possibleRoutes:Route[]):any{
-        let urls = url.split('/')
-        let last = urls[url.length]
-        urls = urls.slice(1,url.length-1)
-        url = urls.join("/");
-        return  [this.findMatch(url,possibleRoutes),last]
-
-    }
-    addroute(url: string, routeFunc:Function,methods: string[]= ["GET"]):void{
-        const urls = url.split('/');
-        if(urls.length <= 2 && urls[1][0] == '<'){
-            this._mainDynammic = new Route(urls[1],routeFunc,methods)
-        }else{
-        let mainRoute = this.findRoute(url);
-
-        if (mainRoute != null){
-            let possibleRoutes = mainRoute.bfs();
-            let [match,newRoute] = this.MatchRoute(url,possibleRoutes)
+        return curr
+        }
     
-            match.addChild(new Route(newRoute,routeFunc,methods))
+    continueConstruction(lastRoute:Route,url:string){
+
+        const lastFoundidx = lastRoute.fullName.split('/').length;
+        let urls = url.split('/');
+        urls = urls.splice(lastFoundidx,urls.length);
+        let curr = lastRoute;
+
+        for(const route of urls){
+            if(route[0] == "<"){
+                let newRoute = new Route("/" + route);
+                curr.setDynamicRoute(newRoute)
+                curr = newRoute
+
+            }else{
+                let newRoute = new Route("/" + route);
+                curr.addChild(newRoute);
+                curr = newRoute;
+            }
+        }   
+        return curr
+    }
+    
+
+    // findMatch(url:string,possibleRoutes:Route[]):any{
+    //     for(const route of possibleRoutes){
+    //         if (route.route == url){
+    //             return route
+    //         }
+    //     }
+    // }
+    // MatchRoute(url:string,possibleRoutes:Route[]):any{
+    //     let urls = url.split('/')
+    //     let last = "/"+urls[urls.length-1]
+    //     urls = urls.slice(1,url.length-1)
+    //     url = urls.join("/");
+    //     return  [this.findMatch(url,possibleRoutes),last]
+
+    // }
+    addroute(url: string, routeFunc:Function,methods: string[]= ["GET"]):void{
+
+        const urls = url.split('/');
+
+        if(urls.length <= 2 && urls[1][0] == '<'){
+
+            this._mainDynammic = new Route(urls[1],routeFunc,methods)
+
+        }else if(urls.length <= 2){
+            let newMainRoute = new Route(url,routeFunc,methods);
+            this._route.addChild(newMainRoute);
 
         }else{
-
-            const currentRoute =   new Route(url.slice(1,url.length),routeFunc,methods);
-
-            this._routes.push(currentRoute)
-        }
-    }
-
-    }
-    setRouter(router:Router){
-        this._routes.push(router._main)
-        this._routesobjs[router._main] = new Route(router._main,router._mainfunc)
-        for (let i =0 ; i < router._subRoutes.length; i++){
-            const route = router._subRoutes[i]
-            this.addroute(route,router._subRouteObjs[route].func,router._subRouteObjs[route].methods)
+            let mainRoute = this._route;
         
-        }
+            if (mainRoute != null){
+                let lastCommonRoute = this.findLastCommon(url,mainRoute);
+                let finalRoute = this.continueConstruction(lastCommonRoute,url);
+
+                finalRoute.func = routeFunc
+                finalRoute.methods = methods
+
+            }else{
+
+                let lastCommonRoute = this.findLastCommon(url,this._mainDynammic);
+                let finalRoute = this.continueConstruction(lastCommonRoute,url);
+
+                finalRoute.func = routeFunc
+                finalRoute.methods = methods
+                this._mainDynammic.addChild(finalRoute)
+
+            }
     }
+
+    }
+    // setRouter(router:Router){
+    //     this._routes.push(router._main)
+    //     this._routesobjs[router._main] = new Route(router._main,router._mainfunc)
+    //     for (let i =0 ; i < router._subRoutes.length; i++){
+    //         const route = router._subRoutes[i]
+    //         this.addroute(route,router._subRouteObjs[route].func,router._subRouteObjs[route].methods)
+        
+    //     }
+    // }
     readhtmlfile(path: string,res:any){
 
         try{
@@ -272,26 +358,27 @@ class Neutrino{
     set404(html:string){
         this._default404 = html;
     }
-    checkIfDynamic(url:string):any{
+    // checkIfDynamic(url:string):any{
         
-        if(this._routes.includes(url)){
-            return [false,null]
-        }else{
-        for(let idx=url.length-1; idx >=0 ;idx-- ){
-            if(url[idx] === '/'){
-                let possibleUrl = url.slice(0,idx)
-                if(this._routes.includes(possibleUrl+'/<')){
-                    return [true,possibleUrl+'/<']
-                }
-            }
-            }
-        return [false,null]
-        }
+    //     if(this._routes.includes(url)){
+    //         return [false,null]
+    //     }else{
+    //     for(let idx=url.length-1; idx >=0 ;idx-- ){
+    //         if(url[idx] === '/'){
+    //             let possibleUrl = url.slice(0,idx)
+    //             if(this._routes.includes(possibleUrl+'/<')){
+    //                 return [true,possibleUrl+'/<']
+    //             }
+    //         }
+    //         }
+    //     return [false,null]
+    //     }
 
 
-    }
+    // }
 
     start(port: number = this._port) {
+        
         let _this = this;
         this._port = port
         this._server.listen(this._port)
@@ -311,7 +398,7 @@ class Neutrino{
             console.log("Got a " + method + " request on " + url);
 
 
-            let mainRoute = this.findRoute(url.slice(0,url.length),true)
+            let mainRoute = this._route
             let possibleRoutes;
             let urlObj:any={};
             let dynamicVars ;
@@ -386,14 +473,21 @@ class Neutrino{
 
 
 
-var app = new Neutrino(5500);
-app.addroute("/<hsein>", (req:any, res:any, dynamicpar:any) => {
+let app = new Neutrino(5500);
+app.addroute("/<lilo>", (req:any, res:any, dynamicpar:any) => {
     console.log(dynamicpar,"dynamic part")
     res.write("<h1>ALi is  here" + dynamicpar["hsein"] + ' </h1>');
 });
 app.addroute("/ali",  (req:any, res:any )=> {
     res.write("<h1>ALi is  here" + "alllllllll" + ' </h1>');
 });
+app.addroute("/ali/<lilo>",  (req:any, res:any,dynamic:any )=> {
+    res.write("<h1>ALi is  here" + dynamic["lilo"] + ' </h1>');
+});
+app.addroute("/ali/<lilo>/ali",  (req:any, res:any,dynamic:any )=> {
+    res.write("<h1>ALi is  here" + dynamic["lilo"] + "ali" + ' </h1>');
+});
+
 
 app.start();
 
