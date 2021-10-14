@@ -1,9 +1,23 @@
-import { IncomingMessage, ServerResponse } from "http";
-import { Server } from "tls";
-
 const http = require("http");
 const fs = require('fs');
 
+
+/* 
+
+    START OF CONSTANTS 
+
+*/
+const IncomingMessage = http.IncomingMessage;
+const ServerResponse  = http.ServerResponse;
+
+
+/*
+
+    PAGES404 IS THE DEFAUKT RESULT THAT WILL APPEAR 
+    IF THE ROUTE THAT WAS ENTRED BY THE USER DOESN'T
+    EXIST 
+
+*/
 let page404 = `    <div style=" display: flex;
                         justify-content: center;
                         align-items: center;
@@ -21,6 +35,23 @@ let page404 = `    <div style=" display: flex;
                         Page Not Found
                         </div>
                         </div>` 
+/*
+
+    END OF CONSTANS
+
+*/
+
+
+/*
+
+    START OF ROUTE CLASS
+
+    THE ROUTE CLASS SAVES THE ROUTES AND GIVES US 
+    THE ABILITY FOR THR ROUTES TO BE A TREE STRUCUTRE
+    SO WE COULD OPTIMIZE THE TIME NEEDED TO SEARCH
+    FOR A SPECFIC ROUTE 
+
+*/
 
 class Route{
     parent:any;
@@ -47,7 +78,7 @@ class Route{
             
 
     }
-
+    // ADDS A CHILD TO THE CURRENT ROUTE INTANCE 
     addChild(child:Route){
         if(child.route[1] === '<'){
             this.dynamicRoute = child;
@@ -57,6 +88,7 @@ class Route{
 
            } 
     }
+    // SETS THE  PARENT TO THE CURRENT ROUTE INTANCE 
     setParent(parent: Route){
         this.parent = parent;
         this.setFullRoute(parent.fullName + this.route)
@@ -70,6 +102,12 @@ class Route{
         route.setFullRoute(this.fullName + route.route)
         this.dynamicRoute = route
     }
+    /*
+        THIS METHODS TAKES A ROUTE(URL) AND THEN 
+        PARSES THREW IT TO GET THE DYNAMIC PARTS IN IT
+        AND TO CHECK IF THE INPUT  IS  THE SAME AS
+        THIS ISTANCE ROUTE
+     */
     compareRoutes(route:string){
         let urls = route.split('/');
         let dynamicParts:any = {};
@@ -103,16 +141,27 @@ class Route{
 }
 
 
+/*
 
-class Response extends ServerResponse{
+    END OF ROUTE CLASS
+
+*/
+
+
+/*
+
+    START OF RESPONSE AND REQUEST CLASS
+
+*/
+class _Response extends http.ServerResponse{
     _req:any
-    constructor(response:ServerResponse,request:IncomingMessage){
+    constructor(response:typeof ServerResponse,request:typeof IncomingMessage){
         super(request)
         this._req = response
     }
 
 }
-class Request extends IncomingMessage{
+class _Request extends http.IncomingMessage{
 
     _req:any;
     params:any;
@@ -121,7 +170,7 @@ class Request extends IncomingMessage{
     path:string;
     cookies:any;
 
-    constructor(request:IncomingMessage,app:Neutrino){
+    constructor(request:typeof IncomingMessage,app:Neutrino){
 
         super(request.socket)
         this.app = app;
@@ -134,6 +183,7 @@ class Request extends IncomingMessage{
 
         this.path = url[0];
 
+        //THIS LOOP EXTRACTS THE PARAMETER FROM THE URL
         if (url[0] != this._req.url){
             let params = url[1].split('&');
             for(let param of params){
@@ -144,6 +194,11 @@ class Request extends IncomingMessage{
         }}
 
     }
+    /* 
+        THIS METHODS PARSERS THRE COOKIES AND 
+        RETURN A DICTIONART WITH THE KEYS
+        AS COOKIES NAMES AND VALUES AS COOKIES VALUES
+    */
     parseCookies () {
         let list:any = {},
             rc = this._req.headers.cookie;
@@ -164,10 +219,28 @@ class Request extends IncomingMessage{
     
         return list;
     }
+    //GET INFO FROM HEADERS
     get(input:string){
         return this.headers[input]
     }
 }   
+
+/*
+
+    END OF RESPONSE AND REQUEST CLASSES
+
+*/
+
+
+/*
+
+    START OF ROUTER CLASS
+
+    THIS CLASS GIVE THE ABBILITY TO SEPRATE THE VIEWS
+    OF THE APP INTO COUPLE OF DIFFERENT FILES
+    AND SHOTENS THE NEEDED ROUTE TO BE WRITTE
+
+*/
 class Router{
     _mainRoute: Route;
     _app: Neutrino;
@@ -183,6 +256,12 @@ class Router{
         
 
     }
+    /*
+        
+        FIND  THE LAST COMMON ROUTE OBJECT THAT MATCHS THE
+        INPUT URL(ROUTE)   
+
+    */
     findLastCommon(route:string,mainRoute:Route){
         let urls  = route.split("/");
         let curr = mainRoute;
@@ -204,6 +283,7 @@ class Router{
         return curr
         }
     
+    // ADD ROUTES TO THE TREE SO IT CANNED BE PARSED TO GET THR URL 
     continueConstruction(lastRoute:Route,url:string){
 
         const lastFoundidx = lastRoute.fullName.split('/').length;
@@ -226,6 +306,7 @@ class Router{
         return curr
     }
     
+    // ADD ROUTES TO THE MAIN ROUTER
     addRoute(url:string,routeFunc:Function,methods:string[]=["GET"]){
         url = this._mainRoute.fullName + url
         const urls = url.split('/');
@@ -264,6 +345,12 @@ class Router{
 }
   
 
+
+/*
+
+    START OF MAIN CLASS(NEUTRINO)
+
+*/
 class Neutrino{
     _server;
     _port:number;
@@ -300,6 +387,12 @@ class Neutrino{
                             </div>` 
 
     }
+    /*
+        
+        FIND  THE LAST COMMON ROUTE OBJECT THAT MATCHS THE
+        INPUT URL(ROUTE)   
+
+    */
     findLastCommon(route:string,mainRoute:Route){
         let urls  = route.split("/");
         let curr = mainRoute;
@@ -321,6 +414,7 @@ class Neutrino{
         return curr
         }
     
+     // ADD ROUTES TO THE TREE SO IT CANNED BE PARSED TO GET THR URL 
     continueConstruction(lastRoute:Route,url:string){
 
         const lastFoundidx = lastRoute.fullName.split('/').length;
@@ -342,7 +436,7 @@ class Neutrino{
         }   
         return curr
     }
-    
+    // ADDS ROUTES OBJECT TO THE TREE
     addroute(url: string, routeFunc:Function,methods: string[]= ["GET"]):void{
 
         const urls = url.split('/');
@@ -378,11 +472,7 @@ class Neutrino{
     }
 
     }
-    setRouter(router:Router){
-        //need to change adding child since  old function use string and not routes
-        
-
-    }
+    // READS HTML FILE AND GIVES THE OUT AND CHANGES THE HEAD OF THE RESPONSE
     readhtmlfile(path: string,res:any){
 
         try{
@@ -396,11 +486,11 @@ class Neutrino{
         }
         
     }
-
+    // THIS METHODS CHANGES THE DEFAULT 404
     set404(html:string){
         this._default404 = html;
     }
-
+    // THIS IS THE MAIN FUNCTION THAT START THE SERVER
     start(port: number = this._port) {
         
         let _this = this;
@@ -408,12 +498,13 @@ class Neutrino{
         this._server.listen(this._port)
         console.log("Neutrino Server live at https://127.0.0.1:" + this._port)
 
+        // THE ON METHODS GIVES US THE ABILITY TO EXECUTE A FUNCTION WHEN A REQUEST IS RECIEVED
         this._server.on('request', (request:any, response:any) => {
 
 
             let url:string = request.url;
             let possibleParams = url.split('?');
-            const _request = new Request(request,app)
+            const _request = new _Request(request,app)
 
             if(possibleParams[0] != url){
                 url = possibleParams[0];
@@ -485,6 +576,12 @@ class Neutrino{
 }}
 
 
+/*
+
+    END OF MAIN CLASS(NEUTRINO)
+
+*/
+
 
 
 
@@ -512,6 +609,4 @@ let router = new Router(app,'/ali',(req:any, res:any, dynamicpar:any) => {
 router.addRoute("/<lilo>/<mimo>/<pat>",(req:any, res:any,dynamic:any )=> {
         res.write("<h1>ALi is  here " + dynamic["lilo"] + " " +dynamic['mimo'] + " "+ dynamic["pat"] + ' </h1>');
     })
-
-app.setRouter(router)
 app.start()
