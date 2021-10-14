@@ -28,6 +28,7 @@ class Route{
     fullName:string;
     dynamic:boolean;
     dynamicRoute:any;
+
     // dynamicVar:string;
 
     constructor(route:string, func:Function=(req:any,res:any)=>{res.write(page404)},methods:string[]=["GET"]){
@@ -40,8 +41,7 @@ class Route{
         this.fullName = route;
         this.dynamic = route[1] === '<' ? true : false
         this.dynamicRoute= null;
-        // this.dynamicVar = [route.slice(2,route.length -1)]
-        
+            
 
     }
 
@@ -67,65 +67,36 @@ class Route{
         route.setFullRoute(this.fullName + route.route)
         this.dynamicRoute = route
     }
-    bfs(){
-        let callStack:any = [this];
-        let allchildren = [this];
-    
-        while (callStack.length != 0) {
-            let temp =   callStack[0];
-            callStack.shift()
-            for (const child of temp.children) {
-                callStack.push(child);
-                allchildren.push(child);
-            }
-        }
-        return allchildren;
-    }
     compareRoutes(route:string){
-        let arr1 = this.fullName.split('/');
-        let arr2 = route.split('/');
+        let urls = route.split('/');
+        let dynamicParts:any = {}
+    
+        urls.shift()
+    
+        let curr:Route = this
+        let lastIsDynamic = false;
 
-        let i = 0;
-        while (i < arr2.length) {
-            if (arr2[i] === "") {
-              arr2.splice(i, 1);
-            } else {
-              ++i;
+        for(let url of urls){
+            url  = '/' + url
+            for(const child of curr.children){
+                if (child.route === url){
+                    curr = child
+                    break
+                }
             }
-          }
-
-        if(arr1[0] == ""){
-            arr1.shift()
-        }
-        if(arr2[0] == ""){
-            arr2.shift()
-        }
-    
-        let idx1 = 0;
-        let idx2 = 0;
-    
-        let dynamicVars:any;
-        dynamicVars = {};
-    
-        while (idx1 < arr1.length && idx2 < arr2.length ){
-            if(arr1[idx1] === arr2[idx2]){
-
-                idx1+=1;
-                idx2+=1;
-            }else if(arr1[idx1][0] === "<"){
-
-                let temp = arr2[idx2].split('?')[0];
-                dynamicVars[arr1[idx1].slice(1,arr1[idx1].length -1)] = temp
-                idx1+=1;
-                idx2 +=1;
+            if(url != curr.route && curr.dynamicRoute != null){
+                curr = curr.dynamicRoute
+                dynamicParts[curr.route.slice(2,curr.route.length-1)] = url.slice(1)
+                lastIsDynamic = true;
             }else{
-                idx1+=1
-                break
+                lastIsDynamic = false;
             }
-
-        }
     
-        return [idx1 === idx2 , dynamicVars]
+        }
+        if(curr.fullName === route  || lastIsDynamic ){
+            return [curr,dynamicParts]
+        }
+        return [null,null]
     }
 }
 
@@ -160,10 +131,17 @@ class _Request{
 }
 class Router{
     _mainRoute: Route;
+    _app: Neutrino;
 
-    constructor(mainRoute:string, routeFunc:Function=(req:any,res:any)=>{res.write(page404)},methods:string[]=["GET"]){
+    constructor(app:Neutrino,mainRoute:string, routeFunc:Function=(req:any,res:any)=>{res.write(page404)},methods:string[]=["GET"]){
 
-        this._mainRoute = new Route(mainRoute,routeFunc,methods)
+        this._app = app;
+        let lastFound = this._app.findLastCommon(mainRoute,this._app._route)
+        this._mainRoute = this._app.continueConstruction(lastFound,mainRoute)
+        
+        this._mainRoute.func = routeFunc
+        this._mainRoute.methods = methods
+        
 
     }
     findLastCommon(route:string,mainRoute:Route){
@@ -175,7 +153,7 @@ class Router{
             url  = '/' + url
             for(const child of curr.children){
                 if (child.route === url){
-                    curr == child
+                    curr = child
                     break
                 }
             }
@@ -210,36 +188,38 @@ class Router{
     }
     
     addRoute(url:string,routeFunc:Function,methods:string[]=["GET"]){
+        url = this._mainRoute.fullName + url
         const urls = url.split('/');
 
         if(urls.length <= 2 && urls[1][0] == '<'){
 
-            this._mainRoute.dynamicRoute = new Route(urls[1],routeFunc,methods)
+            this._mainRoute.dynamicRoute = new Route("/"+urls[1],routeFunc,methods)
+            this._mainRoute.dynamicRoute.setParent(this._mainRoute)
 
-        }else if(urls.length <= 2){
-            let newMainRoute = new Route(url,routeFunc,methods);
-            this._mainRoute.addChild(newMainRoute);
+        // }else if(urls.length <= 2){
+        //     let newMainRoute = new Route(url,routeFunc,methods);
+        //     this._mainRoute.addChild(newMainRoute);
 
         }else{
             let mainRoute = this._mainRoute;
         
-            // if (mainRoute != null){
+            if (mainRoute != null){
                 let lastCommonRoute = this.findLastCommon(url,mainRoute);
                 let finalRoute = this.continueConstruction(lastCommonRoute,url);
 
                 finalRoute.func = routeFunc
                 finalRoute.methods = methods
             
-            // }else{
+            }else{
 
-            //     let lastCommonRoute = this.findLastCommon(url,this._mainRoute.dynamicRoute);
-            //     let finalRoute = this.continueConstruction(lastCommonRoute,url);
+                let lastCommonRoute = this.findLastCommon(url,this._mainRoute.dynamicRoute);
+                let finalRoute = this.continueConstruction(lastCommonRoute,url);
 
-            //     finalRoute.func = routeFunc
-            //     finalRoute.methods = methods
-            //     this._mainRoute.dynamicRoute.addChild(finalRoute)
+                finalRoute.func = routeFunc
+                finalRoute.methods = methods
+                this._mainRoute.dynamicRoute.addChild(finalRoute)
 
-            // }
+            }
     }
     }
 }
@@ -248,7 +228,7 @@ class Router{
 class Neutrino{
     _server;
     _port:number;
-    _route:Route;//fix this to list of routes
+    _route:Route;
     _routesobjs: any;
     _default404:string;
     _mainDynammic:any;
@@ -281,28 +261,6 @@ class Neutrino{
                             </div>` 
 
     }
-    // findMainRoute(url:string,runetime:boolean=false){
-    //     let urls = url.split('/');
-    //     url = "/" +urls[1];
-    //     if(!runetime){
-    //         for(const route of this._routes){
-    //                 if (route.route === url){
-    //                     return  route
-    //                 }
-
-    //         } 
-    //         return null
-    //     }else{
-    //         for(const route of this._routes){
-    //             if (route.route === url){
-    //                 return  route
-    //             }
-
-    //     } 
-    //         return this._mainDynammic
-    //     }
-    // }
-    // this function takes a string path and then find the closeset route in the app routes
     findLastCommon(route:string,mainRoute:Route){
         let urls  = route.split("/");
         let curr = mainRoute;
@@ -346,22 +304,6 @@ class Neutrino{
         return curr
     }
     
-
-    // findMatch(url:string,possibleRoutes:Route[]):any{
-    //     for(const route of possibleRoutes){
-    //         if (route.route == url){
-    //             return route
-    //         }
-    //     }
-    // }
-    // MatchRoute(url:string,possibleRoutes:Route[]):any{
-    //     let urls = url.split('/')
-    //     let last = "/"+urls[urls.length-1]
-    //     urls = urls.slice(1,url.length-1)
-    //     url = urls.join("/");
-    //     return  [this.findMatch(url,possibleRoutes),last]
-
-    // }
     addroute(url: string, routeFunc:Function,methods: string[]= ["GET"]):void{
 
         const urls = url.split('/');
@@ -398,8 +340,9 @@ class Neutrino{
 
     }
     setRouter(router:Router){
+        //need to change adding child since  old function use string and not routes
+        
 
-        this._route.addChild(router._mainRoute)
     }
     readhtmlfile(path: string,res:any){
 
@@ -418,24 +361,7 @@ class Neutrino{
     set404(html:string){
         this._default404 = html;
     }
-    // checkIfDynamic(url:string):any{
-        
-    //     if(this._routes.includes(url)){
-    //         return [false,null]
-    //     }else{
-    //     for(let idx=url.length-1; idx >=0 ;idx-- ){
-    //         if(url[idx] === '/'){
-    //             let possibleUrl = url.slice(0,idx)
-    //             if(this._routes.includes(possibleUrl+'/<')){
-    //                 return [true,possibleUrl+'/<']
-    //             }
-    //         }
-    //         }
-    //     return [false,null]
-    //     }
 
-
-    // }
     start(port: number = this._port) {
         
         let _this = this;
@@ -457,21 +383,14 @@ class Neutrino{
             console.log("Got a " + method + " request on " + url);
 
 
-            let mainRoute = this._route
-            let possibleRoutes;
-            let urlObj:any={};
-            let dynamicVars ;
-            if (mainRoute != null){
-                possibleRoutes = mainRoute.bfs()
-                for(const route of possibleRoutes){
-                    if(route.compareRoutes(url)[0]){
-                        urlObj = route;
-                        dynamicVars= urlObj.compareRoutes(url)[1];
-                    }
-                }
-            }
+            const mainRoute = this._route
+            const found  = mainRoute.compareRoutes(url)
+            const urlObj= found[0];
+            const dynamicVars = found[1] ;
+
+
       
-            if ( mainRoute != {} && urlObj != {}){
+            if ( urlObj != null){
 
                 if(urlObj.methods.includes(method)){
                 
@@ -482,7 +401,7 @@ class Neutrino{
                             urlObj.func(_request,response,dynamicVars)
                             response.statusCode = 200;
                             response.end()
-                            console.log("reponse sent")
+                            console.log("reponse sent to " + request.socket.remoteAddress)
 
                         }catch(err){
 
@@ -496,7 +415,7 @@ class Neutrino{
                             urlObj.func(_request,response)
                             response.statusCode = 200;
                             response.end()
-                            console.log("reponse sent")
+                            console.log("reponse sent to " + request.socket.remoteAddress)
 
                         }catch(err){
 
@@ -523,7 +442,8 @@ class Neutrino{
 
     
 
-}
+}}
+
 
 
 
@@ -544,13 +464,14 @@ let app = new Neutrino(5500);
 //     res.write("<h1>ALi is  here" + dynamic["lilo"] + "ali" + ' </h1>');
 // });
 
-let router = new Router('ali',(req:any, res:any, dynamicpar:any) => {
-        console.log(dynamicpar,"dynamic part")
-        res.write("<h1>ALi is  here" + dynamicpar["hsein"] + ' </h1>');
+let router = new Router(app,'/ali',(req:any, res:any, dynamicpar:any) => {
+
+        res.write("<h1>ALi is  here  </h1>");
     })
 
-router.addRoute("/<lilo>",(req:any, res:any,dynamic:any )=> {
-        res.write("<h1>ALi is  here" + dynamic["lilo"] + ' </h1>');
+router.addRoute("/<lilo>/<mimo>/<pat>",(req:any, res:any,dynamic:any )=> {
+        res.write("<h1>ALi is  here " + dynamic["lilo"] + " " +dynamic['mimo'] + " "+ dynamic["pat"] + ' </h1>');
     })
 
 app.setRouter(router)
+app.start()
