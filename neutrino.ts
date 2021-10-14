@@ -1,3 +1,6 @@
+import { IncomingMessage, ServerResponse } from "http";
+import { Server } from "tls";
+
 const http = require("http");
 const fs = require('fs');
 
@@ -69,56 +72,69 @@ class Route{
     }
     compareRoutes(route:string){
         let urls = route.split('/');
-        let dynamicParts:any = {}
-    
-        urls.shift()
-    
-        let curr:Route = this
-        let lastIsDynamic = false;
+        let dynamicParts:any = {};
+        
+        urls = urls.filter(element => element != '' )
 
-        for(let url of urls){
-            url  = '/' + url
-            for(const child of curr.children){
-                if (child.route === url){
-                    curr = child
-                    break
+        let curr:Route = this;
+        let lastIsDynamic = false;
+        for (let url of urls) {
+            url = '/' + url;
+            for (const child of curr.children) {
+                if (child.route === url || child.route + "/" === url   ) {
+                    curr = child;
+                    break;
                 }
             }
-            if(url != curr.route && curr.dynamicRoute != null){
-                curr = curr.dynamicRoute
-                dynamicParts[curr.route.slice(2,curr.route.length-1)] = url.slice(1)
+            if ((url != curr.route && curr.route + "/" != url   )&& curr.dynamicRoute != null) {
+                curr = curr.dynamicRoute;
+                dynamicParts[curr.route.slice(2, curr.route.length - 1)] = url.slice(1);
                 lastIsDynamic = true;
-            }else{
+            }
+            else {
                 lastIsDynamic = false;
             }
-    
         }
-        if(curr.fullName === route  || lastIsDynamic ){
-            return [curr,dynamicParts]
+        if ((curr.fullName === route || curr.fullName  + '/'=== route )|| lastIsDynamic) {
+            return [curr, dynamicParts];
         }
-        return [null,null]
-    }
+        return [null, null];
+}    
 }
 
 
 
-class _Response{
+class Response extends ServerResponse{
     _req:any
-    constructor(response:any){
+    constructor(response:ServerResponse,request:IncomingMessage){
+        super(request)
         this._req = response
     }
+
 }
-class _Request{
-    _res:any;
+class Request extends IncomingMessage{
+
+    _req:any;
     params:any;
+    app:Neutrino;
+    ip:string;
+    path:string;
+    cookies:any;
 
-    constructor(request:any){
-        this._res = request;
+    constructor(request:IncomingMessage,app:Neutrino){
+
+        super(request.socket)
+        this.app = app;
+        this._req = request;
         this.params = {};
+        this.ip = this._req.socket.remoteAddress;
+        this.cookies = this.parseCookies;
 
-        let url = this._res.url.split('?');
+        let url = this._req.url.split('?');
 
-        if (url[0] != this._res.url){
+        this.path = url[0];
+
+        if (url[0] != this._req.url){
             let params = url[1].split('&');
             for(let param of params){
 
@@ -128,7 +144,30 @@ class _Request{
         }}
 
     }
-}
+    parseCookies () {
+        let list:any = {},
+            rc = this._req.headers.cookie;
+        rc && rc.split(';').forEach(function( cookie:string ) {
+            let parts:string[] = cookie.split('=');
+            let newParts:string[] = [];
+            if(parts.length < 2 ){
+                
+                for(let i = 0; i < (parts.length -1) ; i++){
+                    newParts[0] += parts[i]
+                }
+                newParts[1] =  parts[parts.length-1];
+            }else{
+                newParts = parts
+            }
+            list[newParts[0]] = decodeURI(parts[1]);
+        });
+    
+        return list;
+    }
+    get(input:string){
+        return this.headers[input]
+    }
+}   
 class Router{
     _mainRoute: Route;
     _app: Neutrino;
@@ -371,9 +410,10 @@ class Neutrino{
 
         this._server.on('request', (request:any, response:any) => {
 
+
             let url:string = request.url;
             let possibleParams = url.split('?');
-            const _request = new _Request(request)
+            const _request = new Request(request,app)
 
             if(possibleParams[0] != url){
                 url = possibleParams[0];
