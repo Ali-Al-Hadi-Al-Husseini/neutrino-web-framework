@@ -41,6 +41,36 @@ let page404 = `    <div style=" display: flex;
 
 */
 
+/*
+
+    START OF GLOVAL FUNCTION 
+
+*/
+    // READS HTML FILE AND GIVES THE OUT AND CHANGES THE HEAD OF THE RESPONSE
+function readhtmlfile(path: string,res:typeof IncomingMessage){
+        try{
+            res.writeHead(200, {
+                'Content-Type': 'text/html'
+            });
+
+            const data = fs.createReadStream(path,'utf8')
+            return data
+
+        }catch (error){
+            console.error(error)
+        }
+        
+    }
+
+function setMainDefault404(default404:string){
+        page404 = default404;
+}
+
+/*
+
+    END OF GLOVAL FUNCTION 
+
+*/
 
 /*
 
@@ -153,14 +183,26 @@ class Route{
     START OF RESPONSE AND REQUEST CLASS
 
 */
+
+// REQUEST CLASS ADDS FUNCTIONALITY AND PROPERTIES  TO THE REQUEST OBJECT
 class _Response extends http.ServerResponse{
-    _req:any
+    _res:any
     constructor(response:typeof ServerResponse,request:typeof IncomingMessage){
         super(request)
-        this._req = response
+        this._res = response
     }
-
+    writeHtml(htmlRoute:string){
+        
+        this._res.write(readhtmlfile(htmlRoute,this._req))
+    }
+    sendJson(json:{}){
+        this._res.writeHead(200, {
+            'Content-Type': 'text/html'
+        });
+        this._req.send(JSON.stringify(json))
+    }
 }
+// REQUEST CLASS ADDS FUNCTIONALITY AND PROPERTIES  TO THE REQUEST OBJECT
 class _Request extends http.IncomingMessage{
 
     _req:any;
@@ -472,20 +514,7 @@ class Neutrino{
     }
 
     }
-    // READS HTML FILE AND GIVES THE OUT AND CHANGES THE HEAD OF THE RESPONSE
-    readhtmlfile(path: string,res:any){
 
-        try{
-            res.writeHead(200, {
-                'Content-Type': 'text/html'
-            });
-            const data = fs.readFileSync(path,'utf8')
-            return data
-        }catch (error){
-            throw error
-        }
-        
-    }
     // THIS METHODS CHANGES THE DEFAULT 404
     set404(html:string){
         this._default404 = html;
@@ -605,8 +634,8 @@ let router = new Router(app,'/ali',(req:any, res:any, dynamicpar:any) => {
 
         res.write("<h1>ALi is  here  </h1>");
     })
-
-router.addRoute("/<lilo>/<mimo>/<pat>",(req:any, res:any,dynamic:any )=> {
-        res.write("<h1>ALi is  here " + dynamic["lilo"] + " " +dynamic['mimo'] + " "+ dynamic["pat"] + ' </h1>');
+//"<h1>ALi is  here " + dynamic["lilo"] + " " +dynamic['mimo'] + " "+ dynamic["pat"] + ' </h1>'
+router.addRoute("/ali",(req:any, res:any,dynamic:any )=> {
+        res.write(readhtmlfile('index.html',res));
     })
 app.start()
