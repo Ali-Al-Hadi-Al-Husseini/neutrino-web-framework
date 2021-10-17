@@ -92,14 +92,16 @@ class Route{
     fullName:string;
     dynamic:boolean;
     dynamicRoute:any;
+    middlware:Function[];
 
     // dynamicVar:string;
 
-    constructor(route:string, func:Function=(req:any,res:any)=>{res.write(page404)},methods:string[]=["GET"]){
+    constructor(route:string, func:Function=(req:any,res:any)=>{res.write(page404)},methods:string[]=["GET"],...args:Function[]){
 
         this.parent = null;
         this.children = [];
         this.func = func;
+        this.middlware = args
         this.route = route;
         this.methods = methods;
         this.fullName = route;
@@ -287,7 +289,7 @@ class Router{
     _mainRoute: Route;
     _app: Neutrino;
 
-    constructor(app:Neutrino,mainRoute:string, routeFunc:Function=(req:any,res:any)=>{res.write(page404)},methods:string[]=["GET"]){
+    constructor(app:Neutrino,mainRoute:string, routeFunc:Function=(req:any,res:any)=>{res.write(page404)},methods:string[]=["GET"],...args:Function[]){
 
         this._app = app;
         let lastFound = this._app.findLastCommon(mainRoute,this._app._route)
@@ -295,6 +297,7 @@ class Router{
         
         this._mainRoute.func = routeFunc
         this._mainRoute.methods = methods
+        this._mainRoute.middlware = args
         
 
     }
@@ -335,7 +338,7 @@ class Router{
 
         for(const route of urls){
             if(route[0] == "<"){
-                let newRoute = new Route("/" + route);
+                let newRoute = new Route("/" + route,);
                 curr.setDynamicRoute(newRoute)
                 curr = newRoute
 
@@ -349,17 +352,17 @@ class Router{
     }
     
     // ADD ROUTES TO THE MAIN ROUTER
-    addRoute(url:string,routeFunc:Function,methods:string[]=["GET"]){
+    addRoute(url:string,routeFunc:Function,methods:string[]=["GET"],...args:Function[]){
         url = this._mainRoute.fullName + url
         const urls = url.split('/');
 
         if(urls.length <= 2 && urls[1][0] == '<'){
 
-            this._mainRoute.dynamicRoute = new Route("/"+urls[1],routeFunc,methods)
+            this._mainRoute.dynamicRoute = new Route("/"+urls[1],routeFunc,methods,...args)
             this._mainRoute.dynamicRoute.setParent(this._mainRoute)
 
         // }else if(urls.length <= 2){
-        //     let newMainRoute = new Route(url,routeFunc,methods);
+        //     let newMainRoute = new Route(url,routeFunc,methods); 
         //     this._mainRoute.addChild(newMainRoute);
 
         }else{
@@ -371,6 +374,7 @@ class Router{
 
                 finalRoute.func = routeFunc
                 finalRoute.methods = methods
+                finalRoute.middlware = args;
             
             }else{
 
@@ -379,6 +383,7 @@ class Router{
 
                 finalRoute.func = routeFunc
                 finalRoute.methods = methods
+                finalRoute.middlware = args;
                 this._mainRoute.dynamicRoute.addChild(finalRoute)
 
             }
@@ -479,16 +484,16 @@ class Neutrino{
         return curr
     }
     // ADDS ROUTES OBJECT TO THE TREE
-    addroute(url: string, routeFunc:Function,methods: string[]= ["GET"]):void{
+    addroute(url: string, routeFunc:Function,methods: string[]= ["GET"],...args:Function[]):void{
 
         const urls = url.split('/');
 
         if(urls.length <= 2 && urls[1][0] == '<'){
 
-            this._mainDynammic = new Route(urls[1],routeFunc,methods)
+            this._mainDynammic = new Route(urls[1],routeFunc,methods,...args)
 
         }else if(urls.length <= 2){
-            let newMainRoute = new Route(url,routeFunc,methods);
+            let newMainRoute = new Route(url,routeFunc,methods,...args);
             this._route.addChild(newMainRoute);
 
         }else{
@@ -500,6 +505,7 @@ class Neutrino{
 
                 finalRoute.func = routeFunc
                 finalRoute.methods = methods
+                finalRoute.middlware = args;
 
             }else{
 
@@ -508,6 +514,7 @@ class Neutrino{
 
                 finalRoute.func = routeFunc
                 finalRoute.methods = methods
+                finalRoute.middlware = args;
                 this._mainDynammic.addChild(finalRoute)
 
             }
@@ -525,7 +532,7 @@ class Neutrino{
         let _this = this;
         this._port = port
         this._server.listen(this._port)
-        console.log("Neutrino Server live at https://127.0.0.1:" + this._port)
+        console.log("Neutrino Server live at http://127.0.0.1:" + this._port)
 
         // THE ON METHODS GIVES US THE ABILITY TO EXECUTE A FUNCTION WHEN A REQUEST IS RECIEVED
         this._server.on('request', (request:any, response:any) => {
@@ -533,7 +540,8 @@ class Neutrino{
 
             let url:string = request.url;
             let possibleParams = url.split('?');
-            const _request = new _Request(request,app)
+            const _request = new _Request(request,this);
+            const _response = new _Response(response,request);
 
             if(possibleParams[0] != url){
                 url = possibleParams[0];
@@ -557,44 +565,58 @@ class Neutrino{
                     if (urlObj.dynamic){
                         
                         try{
+                            for(let i=0; i < urlObj.middlware.length ; i++){
+                                if(i === urlObj.middlware.length - 1){
 
-                            urlObj.func(_request,response,dynamicVars)
-                            response.statusCode = 200;
-                            response.end()
+                                    urlObj.middlware[i](_request,_response,dynamicVars,urlObj.func)
+
+                                }else{
+                                    urlObj.middlware[i](_request,_response,dynamicVars,urlObj.middlware[i+1])
+                                }
+                                
+                            }
+                            urlObj.func(_request,_response,dynamicVars)
+                            _response.statusCode = 200;
+                            _response.end()
                             console.log("reponse sent to " + request.socket.remoteAddress)
 
                         }catch(err){
 
-                            response.statusCode = 500;
-                            response.end()
+                            _response.statusCode = 500;
+                            _response.end()
                         }
 
                     }else {
                         try{
+                            for(let i=0; i < urlObj.middlware.length ; i++){
 
-                            urlObj.func(_request,response)
-                            response.statusCode = 200;
-                            response.end()
+                                urlObj.middlware[i](_request,_response,dynamicVars,urlObj.middlware[i+1])
+
+                            }
+
+                            urlObj.func(_request,_response)
+                            _response.statusCode = 200;
+                            _response.end()
                             console.log("reponse sent to " + request.socket.remoteAddress)
 
                         }catch(err){
 
-                            response.statusCode = 500;
-                            response.end()
+                            _response.statusCode = 500;
+                            _response.end()
                         }
                         
                     }
                 }else{
-                    response.statusCode =  405
+                    _response.statusCode =  405
                     console.log("a "+request.method + " request on "+request.url + " not allowed ")
-                    response.write("method not allowed")
-                    response.end()
+                    _response.write("method not allowed")
+                    _response.end()
                 }
             }else{
-                response.statusCode =  404
+                _response.statusCode =  404
                 console.log("repsonse on " + request.url + " failed")
-                response.write(_this._default404)
-                response.end()
+                _response.write(_this._default404)
+                _response.end()
             }
         
           });
@@ -615,7 +637,7 @@ class Neutrino{
 
 
 
-let app = new Neutrino(5500);
+// let app = new Neutrino(5500);
 // app.addroute("/<lilo>", (req:any, res:any, dynamicpar:any) => {
 //     console.log(dynamicpar,"dynamic part")
 //     res.write("<h1>ALi is  here" + dynamicpar["hsein"] + ' </h1>');
@@ -630,12 +652,14 @@ let app = new Neutrino(5500);
 //     res.write("<h1>ALi is  here" + dynamic["lilo"] + "ali" + ' </h1>');
 // });
 
-let router = new Router(app,'/ali',(req:any, res:any, dynamicpar:any) => {
+// let router = new Router(app,'/ali',(req:any, res:any, dynamicpar:any) => {
 
-        res.write("<h1>ALi is  here  </h1>");
-    })
+//         res.write("<h1>ALi is  here  </h1>");
+//     })
 //"<h1>ALi is  here " + dynamic["lilo"] + " " +dynamic['mimo'] + " "+ dynamic["pat"] + ' </h1>'
-router.addRoute("/ali",(req:any, res:any,dynamic:any )=> {
-        res.write(readhtmlfile('index.html',res));
-    })
-app.start()
+// router.addRoute("/ali",(req:any, res:any,dynamic:any ) => {
+//         res.write("<h1>lilo is  here  </h1>");
+//     },["GET"], ()=>{
+//         console.log("|||||||||||||||||||||||||||")
+//     })
+// app.start()
