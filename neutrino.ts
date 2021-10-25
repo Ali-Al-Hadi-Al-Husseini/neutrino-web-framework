@@ -635,7 +635,7 @@ class Neutrino{
 
 
 
-
+//code examples
 
 // let app = new Neutrino(5500);
 // app.addroute("/<lilo>", (req:any, res:any, dynamicpar:any) => {
@@ -663,3 +663,11 @@ class Neutrino{
 //         console.log("|||||||||||||||||||||||||||")
 //     })
 // app.start()
+
+module.exports.Neutrino = Neutrino
+module.exports.readhtmlfile = readhtmlfile
+module.exports.Response = _Response
+module.exports.Request = _Request
+module.exports.Router = Router
+module.exports.Route = Route
+
