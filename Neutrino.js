@@ -434,7 +434,7 @@ class Neutrino {
             let url = request.url;
             let possibleParams = url.split('?');
             const _request = new _Request(request, this);
-            const _response = new _Response(response, request);
+            const _response = response;
             if (possibleParams[0] != url) {
                 url = possibleParams[0];
             }
