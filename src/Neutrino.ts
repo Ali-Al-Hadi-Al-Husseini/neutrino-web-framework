@@ -1,6 +1,7 @@
 const http = require("http");
 const fs = require('fs').promises;
 const ejs = require('ejs')
+const path = require('path');
 
 /* 
 
@@ -41,7 +42,31 @@ let page404 = `    <div style=" display: flex;
                         </div>` 
 
 
-let fileTypesToContentType = {}
+const fileTypesToContentType:Record<string,string> = {  
+    '.html': 'text/html',
+    '.css': 'text/css',
+    '.js': 'text/javascript',
+    '.json': 'application/json',
+    '.xml': 'application/xml',
+    '.pdf': 'application/pdf',
+    '.doc': 'application/msword',
+    '.xls': 'application/vnd.ms-excel',
+    '.ppt': 'application/vnd.ms-powerpoint',
+    '.gif': 'image/gif',
+    '.png': 'image/png',
+    '.jpeg': 'image/jpeg',
+    '.jpg': 'image/jpeg',
+    '.tif': 'image/tiff',
+    '.tiff': 'image/tiff',
+    '.mp3': 'audio/mpeg',
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm',
+    '.mkv': 'video/x-matroska',
+    '.avi': 'video/x-msvideo',
+    '.zip': 'application/zip',
+    '.gzip': 'application/gzip',
+    '.tar': 'application/x-tar'
+}
 /*
 
     END OF CONSTANS
@@ -246,9 +271,9 @@ class neutrinoResponse extends ServerResponseClass{
         this.write(readhtmlfile(htmlRoute,this._req))
     }
     sendJson(json:{}){
-        this.writeHead(200, {
-            'Content-Type': 'application/json'
-        });
+        this.setHeader(
+            'Content-Type', 'application/json'
+        );
         this.send(JSON.stringify(json))
     }
     render(fileName:string, templateVars:any){
@@ -260,6 +285,7 @@ class neutrinoResponse extends ServerResponseClass{
         //todo
         
     }
+
 
     setStatusCode(statusCode:number){
         this.statusCode = statusCode;
@@ -427,14 +453,16 @@ class Router{
         url = this._mainRoute.fullName + url
         const urls = url.split('/');
 
-        if((urls.length <= 2 && urls[1][0] == '<') ){
+        if (url == '' || url== '/'){
+            
+            this._mainRoute.func = routeFunc
+            this._mainRoute.methods = methods
+
+        }else if((urls.length <= 2 && urls[1][0] == '<') ){
 
             this._mainRoute.dynamicRoute = new Route("/"+urls[1],routeFunc,methods)
             this._mainRoute.dynamicRoute.setParent(this._mainRoute)
 
-        // }else if(urls.length <= 2){
-        //     let newMainRoute = new Route(url,routeFunc,methods); 
-        //     this._mainRoute.addChild(newMainRoute);
 
         }else{
             let mainRoute = this._mainRoute;
@@ -482,18 +510,25 @@ class Neutrino{
     _middlewares: Function[]
     _logger: logger
     _log: boolean
+    _staticPaths: string[]
 
     constructor(port: number){
         
         this._server = http.createServer({ ServerResponse: neutrinoResponse ,IncomingMessage : neutrinoRequest});
         this._port   = port;
+
         this._route = new Route('',(req:any,res:any)=>{res.write("<h1>Neutrino</h1>")});
         this._mainDynammic = null
+        this._routesobjs = {'/': this._route}
+
+        // this._route.addChild(this.staticFilesRoute())
+
         this._logger = new logger()
         this._log = true;
-        this._routesobjs = {
-                            '/': this._route
-                        }
+
+        this._staticPaths = []
+
+
         this._middlewares = []
         this._default404 = `    <div style=" display: flex;
                                     justify-content: center;
@@ -601,6 +636,7 @@ class Neutrino{
 
     }
 
+    // 
     decideRequestFate(request: neutrinoRequest, response: neutrinoResponse,dynamicVars: Record<string,string>  | null,route: Route){
         if ( route != null){
             if(route.methods.includes(request.method)){
@@ -649,6 +685,7 @@ class Neutrino{
                     
                 }
             }else{
+                //  method not allowed 405 error 
                 
                 response.statusCode =  405
                 console.log("a " + request.method + " request on "+ request.url + " not allowed ")
@@ -656,7 +693,7 @@ class Neutrino{
                 response.end()
             }
         }else{
-
+            // page not found error 404 error 
             response.statusCode =  404
             console.log("repsonse on " + request.url + " failed")
             response.write(this._default404)
@@ -669,8 +706,8 @@ class Neutrino{
     set404(html:string){
         this._default404 = html;
     }
-    // THIS IS THE MAIN FUNCTION THAT START THE SERVER
 
+    // 
     use(middleware:Function): void{
         this._middlewares.push(middleware)
     }
@@ -681,6 +718,7 @@ class Neutrino{
         this._log = true
     }
 
+    // STARTS THE SERVER AND LISTENS FOR REQUEST SENT TO THE SERVER.
     start(port: number = this._port) {
         
         this._port = port
@@ -695,34 +733,33 @@ class Neutrino{
             let url:string = request.url;
             let possibleParams = url.split('?');
 
-            if(possibleParams[0] != url){
-                url = possibleParams[0];
-            }
+            if(possibleParams[0] != url){url = possibleParams[0];}
+
 
             console.log("Got a " + request.method + " request on " + url);
-
-            const mainRoute = this._route
-            let [urlObj,dynamicVars]  = mainRoute.compareRoutes(url)
+            let [urlObj,dynamicVars]  = this._route.compareRoutes(url)
 
             if(urlObj == null && typeof this._mainDynammic != 'undefined' ){
                 [urlObj,dynamicVars] = this._mainDynammic.compareRoutes(url)
             }
 
             this.decideRequestFate(request, response, dynamicVars, urlObj)
+
             const requestEnd = performance.now();
 
-            if(this._log){
-                this._logger.log(request,response,requestEnd - requestStart)
-            }
+
+            if(this._log){this._logger.log(request,response,requestEnd - requestStart)}
         
           });
     }
 
-    staticFilesRoute(){
-        
+    // ADDS PATH TO STATIC PATH WHICH THE FRAMEWORK SREARCH FOR STATIC FILE FROM.
+    addStaticPath(path:string){
+        this._staticPaths.push(path)
     }
-}
 
+
+}
 
 /*
 
