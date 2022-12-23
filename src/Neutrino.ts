@@ -1,6 +1,6 @@
 const http = require("http");
 const fs = require('fs').promises;
-
+const ejs = require('ejs')
 
 /* 
 
@@ -39,6 +39,9 @@ let page404 = `    <div style=" display: flex;
                         Page Not Found
                         </div>
                         </div>` 
+
+
+let fileTypesToContentType = {}
 /*
 
     END OF CONSTANS
@@ -47,7 +50,7 @@ let page404 = `    <div style=" display: flex;
 
 /*
 
-    START OF GLOVAL FUNCTION 
+    START OF GLOBAL FUNCTION 
 
 */
     // READS HTML FILE AND GIVES THE OUT AND CHANGES THE HEAD OF THE RESPONSE
@@ -66,16 +69,49 @@ function readhtmlfile(path: string,res: ServerResponse){
         
     }
 
-function setMainDefault404(default404:string){
-        page404 = default404;
-}
 
 /*
 
     END OF GLOBAL FUNCTION 
 
 */
+/*
 
+    START OF LOGGER CLASS
+
+*/
+class logger{
+    logFile: string;
+
+    constructor(){
+        this.logFile = 'logs.txt'
+    }
+
+    logMessage(req: neutrinoRequest,res: neutrinoResponse, timeTaken: Number) {
+
+        let log = "=========================================================================\n";
+        log += "---- " +"logged on " + new Date().toISOString() + '\n';
+        log += "---- " +"from the following ip => " + req.ip +'\n';
+        log += "---- " +"recived a " + req.method + " request to url => " + req.url +'\n';
+        log += "---- " +"request recived with follwoing cookies " + JSON.stringify(req.cookies) + '\n';
+        log += "---- " +"response status " + res.statusCode.toString() +'\n';
+        log += "---- " +"response took " + parseFloat(timeTaken.toFixed(2)) + " milliseconds to process \n" ;
+        return log;
+
+
+    }
+
+    async log(req: neutrinoRequest,res: neutrinoResponse, timeTaken: Number){
+
+        await fs.appendFile(this.logFile, this.logMessage(req, res, timeTaken))
+
+    }
+}
+/*
+
+    End OF LOGGER CLASS
+
+*/
 /*
 
     START OF ROUTE CLASS
@@ -199,10 +235,11 @@ class Route{
 // REQUEST CLASS ADDS FUNCTIONALITY AND PROPERTIES  TO THE REQUEST OBJECT
 class neutrinoResponse extends ServerResponseClass{
     _request:IncomingMessage
-
+    statusAlreadySet:Boolean
     constructor(request: IncomingMessage){
         super(request)
         this._request = request
+        this.statusAlreadySet = false;
     }
     writeHtml(htmlRoute:string){
         
@@ -214,6 +251,26 @@ class neutrinoResponse extends ServerResponseClass{
         });
         this.send(JSON.stringify(json))
     }
+    render(fileName:string, templateVars:any){
+        const html = ejs.renderFile(fileName,templateVars);
+        this.send(html);
+    }
+
+    serverStaticFile(){
+        //todo
+        
+    }
+
+    setStatusCode(statusCode:number){
+        this.statusCode = statusCode;
+        this.statusAlreadySet = true
+    }
+    redirect(url:String) {
+        this.setHeader('Location', url);
+        this.statusCode = 302;
+        this.statusAlreadySet= true
+
+      }
 }
 // REQUEST CLASS ADDS FUNCTIONALITY AND PROPERTIES  TO THE REQUEST OBJECT
 class neutrinoRequest extends IncomingMessageClass{
@@ -230,6 +287,7 @@ class neutrinoRequest extends IncomingMessageClass{
         this.params = {};
         this.ip = socket.remoteAddress;
         this.cookies = this.parseCookies();
+
 
         let url = this.url.split('?');
 
@@ -281,14 +339,7 @@ class neutrinoRequest extends IncomingMessageClass{
     get(input:string){
         return this.headers[input]
     }
-    render(){
-        //todo
-    }
 
-    serverStaticFile(){
-        //todo
-        
-    }
 }   
 
 /*
@@ -429,8 +480,8 @@ class Neutrino{
     _default404:string;
     _mainDynammic:any;
     _middlewares: Function[]
-    // _logger: logger
-    // _log: boolean
+    _logger: logger
+    _log: boolean
 
     constructor(port: number){
         
@@ -438,8 +489,8 @@ class Neutrino{
         this._port   = port;
         this._route = new Route('',(req:any,res:any)=>{res.write("<h1>Neutrino</h1>")});
         this._mainDynammic = null
-        // this._logger = new logger()
-        // this._log = true;
+        this._logger = new logger()
+        this._log = true;
         this._routesobjs = {
                             '/': this._route
                         }
@@ -563,7 +614,9 @@ class Neutrino{
                         }
 
                         route.func(request,response,dynamicVars)
-                        response.statusCode = 200;
+                        if (!response.statusAlreadySet) {
+                            response.statusCode = 200;
+                        }
                         response.end()
                         console.log("reponse sent to " + request.socket.remoteAddress)
 
@@ -582,7 +635,9 @@ class Neutrino{
                         }
 
                         route.func(request,response,dynamicVars)
-                        response.statusCode = 200;
+                        if (!response.statusAlreadySet) {
+                            response.statusCode = 200;
+                        }
                         response.end()
                         console.log("reponse sent to " + request.socket.remoteAddress)
 
@@ -656,16 +711,17 @@ class Neutrino{
             this.decideRequestFate(request, response, dynamicVars, urlObj)
             const requestEnd = performance.now();
 
-            // if(this._log){
-            //     this._logger.log(request,response,requestEnd - requestStart)
-            // }
+            if(this._log){
+                this._logger.log(request,response,requestEnd - requestStart)
+            }
         
           });
+    }
 
-
-    
-
-}}
+    staticFilesRoute(){
+        
+    }
+}
 
 
 /*
