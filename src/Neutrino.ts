@@ -1,5 +1,5 @@
 const http = require("http");
-const fs = require('fs').promises;
+const fs = require('fs');
 const ejs = require('ejs')
 const path = require('path');
 
@@ -42,7 +42,8 @@ let page404 = `    <div style=" display: flex;
                         </div>` 
 
 
-const fileTypesToContentType:Record<string,string> = {  
+const fileTypesToContentType:Record<string,string> = { 
+
     '.html': 'text/html',
     '.css': 'text/css',
     '.js': 'text/javascript',
@@ -79,27 +80,60 @@ const fileTypesToContentType:Record<string,string> = {
 
 */
     // READS HTML FILE AND GIVES THE OUT AND CHANGES THE HEAD OF THE RESPONSE
-function readhtmlfile(path: string,res: ServerResponse){
+function readhtmlfile(path: string,res: ServerResponse, logger: logger){
         try{
             res.writeHead(200, {
                 'Content-Type': 'text/html'
             });
 
-            const data = fs.createReadStream(path,'utf8')
+            const data = fs.readFile(path,'utf8')
             return data
 
         }catch (error){
+            logger.errorsLog += error + '\n'
+
             console.error(error)
         }
         
     }
 
+function fileExists(filePath:string, logger: logger) {
+    try {
+        return fs.statSync(filePath).isFile();
+    } catch (err) {
+        logger.errorsLog += err + '\n'
 
+        return false;
+    }
+    }
+
+function readFile(path: string, logger: logger) {
+    try {
+        // Read the file as a string
+        const data = fs.readFileSync(path);
+        return data;
+    }
+    catch (err) {
+        console.error(err);
+        logger.errorsLog += err + '\n'
+    }
+    }
+function corsMiddleware(req:neutrinoRequest, res:neutrinoResponse) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Max-Age', '3600');
+
+    }
+
+    
+let _staticPaths:string[] = []
 /*
 
     END OF GLOBAL FUNCTION 
 
 */
+
 /*
 
     START OF LOGGER CLASS
@@ -107,9 +141,11 @@ function readhtmlfile(path: string,res: ServerResponse){
 */
 class logger{
     logFile: string;
+    errorsLog: string;
 
     constructor(){
         this.logFile = 'logs.txt'
+        this.errorsLog = ''
     }
 
     logMessage(req: neutrinoRequest,res: neutrinoResponse, timeTaken: Number) {
@@ -121,14 +157,23 @@ class logger{
         log += "---- " +"request recived with follwoing cookies " + JSON.stringify(req.cookies) + '\n';
         log += "---- " +"response status " + res.statusCode.toString() +'\n';
         log += "---- " +"response took " + parseFloat(timeTaken.toFixed(2)) + " milliseconds to process \n" ;
+        log += "-------------------------------------------------------------------------\n";
+        log += '----------------------------- Errors Log --------------------------------\n'
+        log += this.errorsLog + '\n'
+        log += "-------------------------------------------------------------------------\n";
+
+
         return log;
 
 
     }
 
-    async log(req: neutrinoRequest,res: neutrinoResponse, timeTaken: Number){
+    log(req: neutrinoRequest,res: neutrinoResponse, timeTaken: Number){
 
-        await fs.appendFile(this.logFile, this.logMessage(req, res, timeTaken))
+        fs.appendFile(this.logFile, this.logMessage(req, res, timeTaken), (err:any) => {
+            if (err) console.error(err);
+            
+        })
 
     }
 }
@@ -154,7 +199,7 @@ class Route{
     func: Function;
     methods: string[];
     route:string;
-    fullName:string;
+    fullRoute:string;
     dynamic:boolean;
     dynamicRoute?: any;
 
@@ -167,7 +212,7 @@ class Route{
         this.func = func;
         this.route = route;
         this.methods = methods;
-        this.fullName = route;
+        this.fullRoute = route;
         this.dynamic = route[1] === '<' ? true : false || route[0] === '<' ? true : false 
         this.parent =  null
         this.dynamicRoute= null
@@ -188,15 +233,15 @@ class Route{
     // SETS THE  PARENT TO THE CURRENT ROUTE INTANCE 
     setParent(parent: Route){
         this.parent = parent;
-        this.setFullRoute(parent.fullName + this.route)
+        this.setFullRoute(parent.fullRoute + this.route)
         parent.children.push(this)
     }
     setFullRoute(route:string){
-        this.fullName = route;
+        this.fullRoute = route;
     }
     setDynamicRoute(route:Route){
         route.parent = this
-        route.setFullRoute(this.fullName + route.route)
+        route.setFullRoute(this.fullRoute + route.route)
         this.dynamicRoute = route
     }
     /*
@@ -236,7 +281,7 @@ class Route{
                 lastIsDynamic = false;
             }
         }
-        if ((curr.fullName === route || curr.fullName  + '/'=== route )|| lastIsDynamic|| curr != this) {
+        if ((curr.fullRoute === route || curr.fullRoute  + '/'=== route )|| lastIsDynamic|| curr != this) {
             return [curr, dynamicParts];
         }
         return [null, null];
@@ -266,35 +311,32 @@ class neutrinoResponse extends ServerResponseClass{
         this._request = request
         this.statusAlreadySet = false;
     }
-    writeHtml(htmlRoute:string){
-        
-        this.write(readhtmlfile(htmlRoute,this._req))
-    }
+
     sendJson(json:{}){
         this.setHeader(
             'Content-Type', 'application/json'
         );
         this.send(JSON.stringify(json))
+        return this
     }
     render(fileName:string, templateVars:any){
         const html = ejs.renderFile(fileName,templateVars);
         this.send(html);
-    }
+        return this
 
-    serverStaticFile(){
-        //todo
-        
     }
-
 
     setStatusCode(statusCode:number){
         this.statusCode = statusCode;
         this.statusAlreadySet = true
+        return this
+
     }
     redirect(url:String) {
         this.setHeader('Location', url);
         this.statusCode = 302;
         this.statusAlreadySet= true
+        return this
 
       }
 }
@@ -417,7 +459,7 @@ class Router{
                     break
                 }
             }
-            if(url != curr.route && curr.dynamicRoute != null){
+            if(url != curr.route && curr.dynamicRoute != null && url  !=  '/' + urls[urls.length-1] ){
                 curr = curr.dynamicRoute
             }
 
@@ -428,7 +470,7 @@ class Router{
     // ADD ROUTES TO THE TREE SO IT CANNED BE PARSED TO GET THR URL 
     continueConstruction(lastRoute: Route,url: string): Route{
 
-        const lastFoundidx = lastRoute.fullName.split('/').length;
+        const lastFoundidx = lastRoute.fullRoute.split('/').length;
         let urls = url.split('/');
         urls = urls.splice(lastFoundidx,urls.length);
         let curr = lastRoute;
@@ -450,7 +492,7 @@ class Router{
     
     // ADD ROUTES TO THE MAIN ROUTER
     addRoute(url: string,routeFunc: Function,methods: string[]=["GET"]){
-        url = this._mainRoute.fullName + url
+        url = this._mainRoute.fullRoute + url
         const urls = url.split('/');
 
         if (url == '' || url== '/'){
@@ -505,12 +547,13 @@ class Neutrino{
     _port:number;   
     _route:Route;
     _routesobjs: Record<string,Route>;
+
     _default404:string;
     _mainDynammic:any;
     _middlewares: Function[]
+    _afterWare: Function[]
     _logger: logger
     _log: boolean
-    _staticPaths: string[]
 
     constructor(port: number){
         
@@ -520,16 +563,13 @@ class Neutrino{
         this._route = new Route('',(req:any,res:any)=>{res.write("<h1>Neutrino</h1>")});
         this._mainDynammic = null
         this._routesobjs = {'/': this._route}
-
-        // this._route.addChild(this.staticFilesRoute())
+        this.staticFilesRoute()
 
         this._logger = new logger()
         this._log = true;
 
-        this._staticPaths = []
-
-
-        this._middlewares = []
+        this._middlewares = [corsMiddleware]
+        this._afterWare = []
         this._default404 = `    <div style=" display: flex;
                                     justify-content: center;
                                     align-items: center;
@@ -568,7 +608,7 @@ class Neutrino{
                     break
                 }
             }
-            if(url != curr.route && curr.dynamicRoute != null){
+            if(url != curr.route && curr.dynamicRoute != null && url  !=  '/' + urls[urls.length-1] ){
                 curr = curr.dynamicRoute
             }
 
@@ -579,23 +619,32 @@ class Neutrino{
      // ADD ROUTES TO THE TREE SO IT CANNED BE PARSED TO GET THR URL 
     continueConstruction(lastRoute: Route,url: string): Route{
 
-        const lastFoundidx = lastRoute.fullName.split('/').length;
+        const lastFoundidx = lastRoute.fullRoute.split('/').length;
+
         let urls = url.split('/');
         urls = urls.splice(lastFoundidx,urls.length);
+
         let curr = lastRoute;
+        let newRoute:Route;
 
         for(const route of urls){
             if(route[0] == "<"){
-                let newRoute = new Route("/" + route);
+                newRoute = new Route("/" + route);
+
                 curr.setDynamicRoute(newRoute)
                 curr = newRoute
 
             }else{
-                let newRoute = new Route("/" + route);
+                newRoute = new Route("/" + route);
+
+                let fullRoute = newRoute.fullRoute
+                // this._routesobjs[fullRoute] = newRoute
+
                 curr.addChild(newRoute);
                 curr = newRoute;
             }
         }   
+        
         return curr
     }
     // ADDS ROUTES OBJECT TO THE TREE
@@ -636,6 +685,18 @@ class Neutrino{
 
     }
 
+    get(route: string, routefunc: Function){
+        this.addroute(route,routefunc,['GET'])
+    }
+    post(route: string, routefunc: Function){
+        this.addroute(route,routefunc,['post'])
+    }
+    put(route: string, routefunc: Function){
+        this.addroute(route,routefunc,['PUT'])
+    }
+    delete(route: string, routefunc: Function){
+        this.addroute(route,routefunc,['delete'])
+    }
     // 
     decideRequestFate(request: neutrinoRequest, response: neutrinoResponse,dynamicVars: Record<string,string>  | null,route: Route){
         if ( route != null){
@@ -658,6 +719,7 @@ class Neutrino{
 
                     }catch(err){
 
+                        this._logger.errorsLog += err + '\n'
                         response.statusCode = 500;
                         response.end()
                     }
@@ -678,7 +740,7 @@ class Neutrino{
                         console.log("reponse sent to " + request.socket.remoteAddress)
 
                     }catch(err){
-
+                        this._logger.errorsLog += err + '\n'
                         response.statusCode = 500;
                         response.end()
                     }
@@ -708,8 +770,11 @@ class Neutrino{
     }
 
     // 
-    use(middleware:Function): void{
+    use(middleware:Function,): void{
         this._middlewares.push(middleware)
+    }
+    afterWare(afterware: Function){
+        this._afterWare.push(afterware)
     }
     disableLogging(){
         this._log = false
@@ -727,27 +792,32 @@ class Neutrino{
 
         // THE ON METHODS GIVES US THE ABILITY TO EXECUTE A FUNCTION WHEN A REQUEST IS RECIEVED
         this._server.on('request', (request: neutrinoRequest, response: neutrinoResponse) => {
-
+            /* 
+                RECORDED THE START TIME OF THE SERVER RESPONDING TO THe REQUEST
+                TO MEASURE IT PERFORMANCE AND LOG IT
+            */
             const requestStart = performance.now();
 
             let url:string = request.url;
             let possibleParams = url.split('?');
 
             if(possibleParams[0] != url){url = possibleParams[0];}
-
-
             console.log("Got a " + request.method + " request on " + url);
-            let [urlObj,dynamicVars]  = this._route.compareRoutes(url)
 
-            if(urlObj == null && typeof this._mainDynammic != 'undefined' ){
-                [urlObj,dynamicVars] = this._mainDynammic.compareRoutes(url)
+            //FIND THE THE RIGHT ROUTE OBJECT FOR THE GIVEN URL
+            let routeObj:any;
+            let dynamicVars:any;
+
+            [routeObj,dynamicVars]  = this._route.compareRoutes(url)
+
+            if(routeObj == null && typeof this._mainDynammic != 'undefined' ){
+                [routeObj,dynamicVars] = this._mainDynammic.compareRoutes(url)
             }
+            
+            this.decideRequestFate(request, response, dynamicVars, routeObj)
 
-            this.decideRequestFate(request, response, dynamicVars, urlObj)
-
+            // END TIME CAPTURING 
             const requestEnd = performance.now();
-
-
             if(this._log){this._logger.log(request,response,requestEnd - requestStart)}
         
           });
@@ -755,10 +825,40 @@ class Neutrino{
 
     // ADDS PATH TO STATIC PATH WHICH THE FRAMEWORK SREARCH FOR STATIC FILE FROM.
     addStaticPath(path:string){
-        this._staticPaths.push(path)
+        _staticPaths.push(path)
     }
 
+    // CREATES STATIC FILE ROUTE THAT SERVE LOCAL STATICS FILE TO THE BROWSER.
+    staticFilesRoute(){
+        
+        const staticRouteFunc =  (request: neutrinoRequest, response: neutrinoResponse, dynamicvars: any) =>{
+            let neededFile:string = ''
+            
+            for (const dir of _staticPaths) {
+                const filePath = path.join(dir, dynamicvars['fileName']);
+                if ( fileExists(filePath,this._logger)) {
+                    neededFile = filePath;
+                }
+            }
+            response.setStatusCode(200)
+            response.setHeader('Content-Type',fileTypesToContentType[path.extname(neededFile)])
 
+            try{
+
+                const data =  readFile(neededFile,this._logger)
+                response.write(data)
+    
+            }catch (error){
+                this._logger.errorsLog += error + '\n'
+                response.setStatusCode(500)
+
+            }
+            
+        }
+        
+        this.addroute('/static/<fileName>',staticRouteFunc)
+
+    }
 }
 
 /*
@@ -768,35 +868,6 @@ class Neutrino{
 */
 
 
-
-//code examples
-
-// let app = new Neutrino(5500);
-// app.addroute("/<lilo>", (req:any, res:any, dynamicpar:any) => {
-//     console.log(dynamicpar,"dynamic part")
-//     res.write("<h1>ALi is  here" + dynamicpar["hsein"] + ' </h1>');
-// });
-// app.addroute("/ali",  (req:any, res:any )=> {
-//     res.write("<h1>ALi is  here" + "alllllllll" + ' </h1>');
-// });
-// app.addroute("/ali/<lilo>",  (req:any, res:any,dynamic:any )=> {
-//     res.write("<h1>ALi is  here" + dynamic["lilo"] + ' </h1>');
-// });
-// app.addroute("/ali/<lilo>/ali",  (req:any, res:any,dynamic:any )=> {
-//     res.write("<h1>ALi is  here" + dynamic["lilo"] + "ali" + ' </h1>');
-// });
-
-// let router = new Router(app,'/ali',(req:any, res:any, dynamicpar:any) => {
-
-//         res.write("<h1>ALi is  here  </h1>");
-//     })
-//"<h1>ALi is  here " + dynamic["lilo"] + " " +dynamic['mimo'] + " "+ dynamic["pat"] + ' </h1>'
-// router.addRoute("/ali",(req:any, res:any,dynamic:any ) => {
-//         res.write("<h1>lilo is  here  </h1>");
-//     },["GET"], ()=>{
-//         console.log("|||||||||||||||||||||||||||")
-//     })
-// app.start()
 
 module.exports.Neutrino = Neutrino
 module.exports.readhtmlfile = readhtmlfile
