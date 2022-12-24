@@ -133,7 +133,57 @@ let _staticPaths:string[] = []
     END OF GLOBAL FUNCTION 
 
 */
+/*
 
+    START OF rateLimiter CLASS
+
+*/
+
+class rateLimiter{
+    rateLimitCache: any
+    constructor(){
+        this.rateLimitCache = {}
+    }
+    rateLimiter(req:neutrinoRequest, res:neutrinoResponse, next:Function) {
+        // Set the maximum number of requests allowed in a given time period
+        const maxRequests = 100;
+        // Set the length of the time period in seconds
+        const timePeriod = 60;
+        // Get the current time
+        const now = Date.now();
+        // Check if the client's IP address is in the rate limit cache
+        if (!this.rateLimitCache[req.ip]) {
+          // If not, add the IP address to the cache with the current time and a request count of 1
+          this.rateLimitCache[req.ip] = {
+            requests: 1,
+            startTime: now,
+          };
+        } else {
+          // If the IP address is in the cache, increment the request count
+          this.rateLimitCache[req.ip].requests += 1;
+        }
+        // Calculate the elapsed time since the start of the time period
+        const elapsedTime = now - this.rateLimitCache[req.ip].startTime;
+        // If the elapsed time is greater than the time period, reset the request count and start time
+        if (elapsedTime > timePeriod * 1000) {
+            this.rateLimitCache[req.ip].requests = 1;
+            this.rateLimitCache[req.ip].startTime = now;
+        }
+        // If the request count is greater than the maximum allowed, return a rate limit exceeded error
+        if (this.rateLimitCache[req.ip].requests > maxRequests) {
+          return res.status(429).send('Too many requests. Please try again later.');
+        }
+        // If the request count is within the limit, continue to the next middleware or handler
+        return next();
+      }
+
+}
+
+/*
+
+    END OF rateLimiter CLASS
+
+*/
 /*
 
     START OF LOGGER CLASS
