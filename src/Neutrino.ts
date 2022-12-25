@@ -1,3 +1,5 @@
+import { BlobOptions } from "buffer";
+
 const http = require("http");
 const fs = require('fs');
 const ejs = require('ejs')
@@ -164,7 +166,7 @@ class ware{
         try {
             this.currentWareIdx += 1 
             if (this.currentWareIdx >= this.wares.length) return this.reset()
-            this.wares[this.currentWareIdx](this.request,this.response,this.next.bind(self))
+            this.wares[this.currentWareIdx](this.request,this.response,this.next.bind(this))
         }catch(err){
             this.Logger.addError(String(err))
         }
@@ -180,7 +182,7 @@ class ware{
         this.wares.splice(index, 1);
 
     }
-    inserWare(ware:Function,idx: number){
+    insertWare(ware:Function,idx: number){
         this.wares.splice(idx,0,ware)
     }
 }
@@ -229,12 +231,14 @@ class rateLimiter{
     rateLimitCache: any
     maxRequests:number
     timePeriod: number
+    limitRequestRate: boolean
     constructor(){
         this.rateLimitCache = {}
         this.maxRequests = 100
         this.timePeriod = 60
+        this.limitRequestRate = false
     }
-    rateLimiter(req:neutrinoRequest, res:neutrinoResponse, next:Function) {
+    exceededLimit(req:neutrinoRequest, res:neutrinoResponse) {
         // Get the current time
         const now = Date.now();
         // Check if the client's IP address is in the rate limit cache
@@ -257,11 +261,13 @@ class rateLimiter{
         }
         // If the request count is greater than the maximum allowed, return a rate limit exceeded error
         if (this.rateLimitCache[req.ip].requests > this.maxRequests) {
-            res.status(429).send('Too many requests. Please try again later.');
-            return res.end()
+            res.setStatusCode(429)
+            res.write('Too many requests. Please try again later.');
+            res.end()
+            return false
         }
         // If the request count is within the limit, continue to the next middleware or handler
-        return next();
+        return true
       }
     
     setLimit(maxRequest:number,timePeriod:number){
@@ -770,7 +776,7 @@ class Neutrino{
     }
     addRateLimiting(maxRequest: number, timePeriod: number){
         this._rateLimiter.setLimit(maxRequest, timePeriod)
-        this.use(this._rateLimiter.rateLimiter.bind(this._rateLimiter));
+        this._rateLimiter.limitRequestRate = true
 
     }
     resetLimit(maxRequest: number, timePeriod: number){
@@ -975,9 +981,18 @@ class Neutrino{
                 [routeObj,dynamicVars] = this._mainDynammic.compareRoutes(url)
             }
 
-            this._middlewares.startWares(request,response)
-            this.decideRequestFate(request, response, dynamicVars, routeObj)
-            this._afterware.startWares(request,response)
+            if(this._rateLimiter.limitRequestRate){
+                if(!this._rateLimiter.exceededLimit(request,response)){
+                    this._middlewares.startWares(request,response)
+                    this.decideRequestFate(request, response, dynamicVars, routeObj)
+                    this._afterware.startWares(request,response)
+                }
+            }
+            else{
+                this._middlewares.startWares(request,response)
+                this.decideRequestFate(request, response, dynamicVars, routeObj)
+                this._afterware.startWares(request,response)
+            }
 
             // END TIME CAPTURING 
             const requestEnd = performance.now();

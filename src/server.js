@@ -40,12 +40,13 @@ let app = new Neutrino(5500);
         })
     
     app.addStaticPath('C:\\Users\\lilo\\Documents\\GitHub\\neutrino-web-framework\\src\\static')
-
+    app.addRateLimiting(1,10)
 
     app.use((req, res,next)=> {
         console.log("===================    middleware acssecd here hola hola hola hello    =====================")
         next()
     })
+
      app.start()
 
     
