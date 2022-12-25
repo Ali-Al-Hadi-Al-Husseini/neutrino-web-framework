@@ -135,6 +135,98 @@ let _staticPaths:string[] = []
 */
 /*
 
+    START OF middleWare CLASS
+
+*/
+
+class middleWare{
+    middlwares: Function[]
+    currentMiddlware: Function
+    currentMiddlwareIdx:number
+    request?:neutrinoRequest
+    response?: neutrinoResponse
+
+    constructor(){
+        this.middlwares = []
+        this.currentMiddlware = () => {}
+        this.currentMiddlwareIdx = 0
+        
+    }
+    setReqRes(request:neutrinoRequest, response: neutrinoResponse){
+        this.request = request
+        this.response = response
+    }
+    startMiddlewares(request:neutrinoRequest, response: neutrinoResponse){
+        this.setReqRes(request, response)
+        this.next() 
+    }
+    addMiddlware(middleware: Function){
+        this.middlwares.push(middleware)
+    }
+
+    next(){
+        if (this.currentMiddlwareIdx >= this.middlwares.length) return this.reset()
+        this.middlwares[this.currentMiddlwareIdx](this.request,this.response,this.next)
+        this.currentMiddlwareIdx += 1 
+    }
+    reset(){
+        this.currentMiddlwareIdx = 0
+    }
+}
+
+/*
+
+    END OF middleWare CLASS
+
+*/
+/*
+
+    START OF afterWare CLASS
+
+*/
+
+class afterWare{
+    afterWares: Function[]
+    currentAfterWare: Function
+    currentAfterWareIdx:number
+    request?:neutrinoRequest
+    response?: neutrinoResponse
+
+    constructor(){
+        this.afterWares = []
+        this.currentAfterWare = () => {}
+        this.currentAfterWareIdx = 0
+        
+    }
+    setReqRes(request:neutrinoRequest, response: neutrinoResponse){
+        this.request = request
+        this.response = response
+    }
+    startAfterWares(request:neutrinoRequest, response: neutrinoResponse){
+        this.setReqRes(request, response)
+        this.next()
+    }
+    addAfterWare(middleware: Function){
+        this.afterWares.push(middleware)
+    }
+
+    next(){
+        if (this.currentAfterWareIdx >= this.afterWares.length) return this.reset()
+        this.afterWares[this.currentAfterWareIdx](this.request,this.response,this.next)
+        this.currentAfterWareIdx += 1 
+    }
+    reset(){
+        this.currentAfterWareIdx = 0
+    }
+}
+
+/*
+
+    END OF afterWare CLASS
+
+*/
+/*
+
     START OF rateLimiter CLASS
 
 */
@@ -600,8 +692,8 @@ class Neutrino{
 
     _default404:string;
     _mainDynammic:any;
-    _middlewares: Function[]
-    _afterWare: Function[]
+    _middlewares: middleWare
+    _afterWares: afterWare
     _logger: logger
     _log: boolean
 
@@ -618,8 +710,10 @@ class Neutrino{
         this._logger = new logger()
         this._log = true;
 
-        this._middlewares = [corsMiddleware]
-        this._afterWare = []
+        this._middlewares = new middleWare()
+        this._afterWares = new afterWare()
+
+
         this._default404 = `    <div style=" display: flex;
                                     justify-content: center;
                                     align-items: center;
@@ -755,11 +849,6 @@ class Neutrino{
                 if (route.dynamic){
                     
                     try{
-                        for(let i=0; i < this._middlewares.length ; i++){
-
-                            this._middlewares[i](request,response,this._middlewares[i+1],dynamicVars)
-                        }
-
                         route.func(request,response,dynamicVars)
                         if (!response.statusAlreadySet) {
                             response.statusCode = 200;
@@ -776,11 +865,7 @@ class Neutrino{
 
                 }else {
                     try{
-                        for(let i=0; i < this._middlewares.length ; i++){
-
-                            this._middlewares[i](request,response,this._middlewares[i+1],dynamicVars)
-
-                        }
+                        this._middlewares.startMiddlewares(request,response)
 
                         route.func(request,response,dynamicVars)
                         if (!response.statusAlreadySet) {
@@ -812,6 +897,8 @@ class Neutrino{
             response.end()
 
         }
+
+
     }
 
     // THIS METHODS CHANGES THE DEFAULT 404
@@ -821,10 +908,10 @@ class Neutrino{
 
     // 
     use(middleware:Function,): void{
-        this._middlewares.push(middleware)
+        this._middlewares.addMiddlware(middleware)
     }
-    afterWare(afterware: Function){
-        this._afterWare.push(afterware)
+    addAfterWare(afterware: Function){
+        this._afterWares.addAfterWare(afterware)
     }
     disableLogging(){
         this._log = false
@@ -863,8 +950,10 @@ class Neutrino{
             if(routeObj == null && typeof this._mainDynammic != 'undefined' ){
                 [routeObj,dynamicVars] = this._mainDynammic.compareRoutes(url)
             }
-            
+
+            this._middlewares.startMiddlewares(request,response)
             this.decideRequestFate(request, response, dynamicVars, routeObj)
+            this._afterWares.startAfterWares(request,response)
 
             // END TIME CAPTURING 
             const requestEnd = performance.now();
