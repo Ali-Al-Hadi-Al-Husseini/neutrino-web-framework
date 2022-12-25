@@ -721,7 +721,6 @@ class Neutrino{
         this._afterware = new afterWare(this._logger)
 
         this._rateLimiter = new rateLimiter()
-        this.use(this._rateLimiter.rateLimiter.bind(this._rateLimiter))
 
         this._default404 = `    <div style=" display: flex;
                                     justify-content: center;
@@ -769,7 +768,14 @@ class Neutrino{
     skipAfterware(){
         this._afterware.currentWareIdx = this._middlewares.wares.length
     }
+    addRateLimiting(maxRequest: number, timePeriod: number){
+        this._rateLimiter.setLimit(maxRequest, timePeriod)
+        this.use(this._rateLimiter.rateLimiter.bind(this._rateLimiter));
 
+    }
+    resetLimit(maxRequest: number, timePeriod: number){
+        this._rateLimiter.setLimit(maxRequest, timePeriod)
+    }
     /*
         
         FIND  THE LAST COMMON ROUTE OBJECT THAT MATCHS THE
