@@ -133,44 +133,66 @@ let _staticPaths:string[] = []
     END OF GLOBAL FUNCTION 
 
 */
-/*
-
-    START OF middleWare CLASS
-
-*/
-
-class middleWare{
-    middlwares: Function[]
-    currentMiddlware: Function
-    currentMiddlwareIdx:number
+class ware{
+    wares: Function[]
+    currentWare: Function
+    currentWareIdx:number
     request?:neutrinoRequest
     response?: neutrinoResponse
+    Logger: logger
 
-    constructor(){
-        this.middlwares = []
-        this.currentMiddlware = () => {}
-        this.currentMiddlwareIdx = 0
+    constructor(logger: logger){
+        this.wares = []
+        this.currentWare = () => {}
+        this.currentWareIdx = -1
+        this.Logger = logger
         
     }
     setReqRes(request:neutrinoRequest, response: neutrinoResponse){
         this.request = request
         this.response = response
     }
-    startMiddlewares(request:neutrinoRequest, response: neutrinoResponse){
+    startWares(request:neutrinoRequest, response: neutrinoResponse){
         this.setReqRes(request, response)
         this.next() 
     }
-    addMiddlware(middleware: Function){
-        this.middlwares.push(middleware)
+    addWare(middleware: Function){
+        this.wares.push(middleware)
     }
 
     next(){
-        if (this.currentMiddlwareIdx >= this.middlwares.length) return this.reset()
-        this.middlwares[this.currentMiddlwareIdx](this.request,this.response,this.next)
-        this.currentMiddlwareIdx += 1 
+        try {
+            this.currentWareIdx += 1 
+            if (this.currentWareIdx >= this.wares.length) return this.reset()
+            this.wares[this.currentWareIdx](this.request,this.response,this.next.bind(self))
+        }catch(err){
+            this.Logger.addError(String(err))
+        }
+
     }
     reset(){
-        this.currentMiddlwareIdx = 0
+        this.currentWareIdx = -1
+    }
+    removeWare(ware:Function) {
+  
+        const index = this.wares.indexOf(ware);
+        if (index == -1) return console.error("Tried to remove ware that is not added") 
+        this.wares.splice(index, 1);
+
+    }
+    inserWare(ware:Function,idx: number){
+        this.wares.splice(idx,0,ware)
+    }
+}
+/*
+
+    START OF middleWare CLASS
+
+*/
+
+class middleWare extends ware{
+    constructor(logger: logger){
+        super(logger)
     }
 }
 
@@ -185,40 +207,12 @@ class middleWare{
 
 */
 
-class afterWare{
-    afterWares: Function[]
-    currentAfterWare: Function
-    currentAfterWareIdx:number
-    request?:neutrinoRequest
-    response?: neutrinoResponse
-
-    constructor(){
-        this.afterWares = []
-        this.currentAfterWare = () => {}
-        this.currentAfterWareIdx = 0
-        
-    }
-    setReqRes(request:neutrinoRequest, response: neutrinoResponse){
-        this.request = request
-        this.response = response
-    }
-    startAfterWares(request:neutrinoRequest, response: neutrinoResponse){
-        this.setReqRes(request, response)
-        this.next()
-    }
-    addAfterWare(middleware: Function){
-        this.afterWares.push(middleware)
-    }
-
-    next(){
-        if (this.currentAfterWareIdx >= this.afterWares.length) return this.reset()
-        this.afterWares[this.currentAfterWareIdx](this.request,this.response,this.next)
-        this.currentAfterWareIdx += 1 
-    }
-    reset(){
-        this.currentAfterWareIdx = 0
+class afterWare extends ware{
+    constructor(logger: logger){
+        super(logger)
     }
 }
+
 
 /*
 
@@ -233,14 +227,14 @@ class afterWare{
 
 class rateLimiter{
     rateLimitCache: any
+    maxRequests:number
+    timePeriod: number
     constructor(){
         this.rateLimitCache = {}
+        this.maxRequests = 100
+        this.timePeriod = 60
     }
     rateLimiter(req:neutrinoRequest, res:neutrinoResponse, next:Function) {
-        // Set the maximum number of requests allowed in a given time period
-        const maxRequests = 100;
-        // Set the length of the time period in seconds
-        const timePeriod = 60;
         // Get the current time
         const now = Date.now();
         // Check if the client's IP address is in the rate limit cache
@@ -257,18 +251,23 @@ class rateLimiter{
         // Calculate the elapsed time since the start of the time period
         const elapsedTime = now - this.rateLimitCache[req.ip].startTime;
         // If the elapsed time is greater than the time period, reset the request count and start time
-        if (elapsedTime > timePeriod * 1000) {
+        if (elapsedTime > this.timePeriod * 1000) {
             this.rateLimitCache[req.ip].requests = 1;
             this.rateLimitCache[req.ip].startTime = now;
         }
         // If the request count is greater than the maximum allowed, return a rate limit exceeded error
-        if (this.rateLimitCache[req.ip].requests > maxRequests) {
-          return res.status(429).send('Too many requests. Please try again later.');
+        if (this.rateLimitCache[req.ip].requests > this.maxRequests) {
+            res.status(429).send('Too many requests. Please try again later.');
+            return res.end()
         }
         // If the request count is within the limit, continue to the next middleware or handler
         return next();
       }
-
+    
+    setLimit(maxRequest:number,timePeriod:number){
+        this.maxRequests = maxRequest
+        this.timePeriod = timePeriod
+    }
 }
 
 /*
@@ -282,37 +281,44 @@ class rateLimiter{
 
 */
 class logger{
+    logMessage:string
     logFile: string;
     errorsLog: string;
 
     constructor(){
         this.logFile = 'logs.txt'
         this.errorsLog = ''
+        this.logMessage = ""
     }
 
-    logMessage(req: neutrinoRequest,res: neutrinoResponse, timeTaken: Number) {
+    reqResData(req: neutrinoRequest,res: neutrinoResponse, timeTaken: Number) {
 
-        let log = "=========================================================================\n";
-        log += "---- " +"logged on " + new Date().toISOString() + '\n';
-        log += "---- " +"from the following ip => " + req.ip +'\n';
-        log += "---- " +"recived a " + req.method + " request to url => " + req.url +'\n';
-        log += "---- " +"request recived with follwoing cookies " + JSON.stringify(req.cookies) + '\n';
-        log += "---- " +"response status " + res.statusCode.toString() +'\n';
-        log += "---- " +"response took " + parseFloat(timeTaken.toFixed(2)) + " milliseconds to process \n" ;
-        log += "-------------------------------------------------------------------------\n";
-        log += '----------------------------- Errors Log --------------------------------\n'
-        log += this.errorsLog + '\n'
-        log += "-------------------------------------------------------------------------\n";
+        return ("=========================================================================\n"
+            + "---- " +"logged on " + new Date().toISOString() + '\n'
+            + "---- " +"from the following ip => " + req.ip +'\n'
+            + "---- " +"recived a " + req.method + " request to url => " + req.url +'\n'
+            + "---- " +"request recived with follwoing cookies " + JSON.stringify(req.cookies) + '\n'
+            + "---- " +"response status " + res.statusCode.toString() +'\n'
+            + "---- " +"response took " + parseFloat(timeTaken.toFixed(2)) + " milliseconds to process \n" 
+            + "-------------------------------------------------------------------------\n"
+            + '----------------------------- Errors Log --------------------------------\n'
+            + this.errorsLog + '\n'
+            + "-------------------------------------------------------------------------\n"
+            + "---------------------------- Developed Logsqd---------------------------------\n"
+            + this.logMessage
+            + "-------------------------------------------------------------------------\n")
 
-
-        return log;
-
-
+    }
+    addError(err:string){
+        this.errorsLog += err
+    }
+    addToLog(logMessage: string){
+        this.logMessage += logMessage + '\n'
     }
 
     log(req: neutrinoRequest,res: neutrinoResponse, timeTaken: Number){
 
-        fs.appendFile(this.logFile, this.logMessage(req, res, timeTaken), (err:any) => {
+        fs.appendFile(this.logFile, this.reqResData(req, res, timeTaken), (err:any) => {
             if (err) console.error(err);
             
         })
@@ -693,9 +699,10 @@ class Neutrino{
     _default404:string;
     _mainDynammic:any;
     _middlewares: middleWare
-    _afterWares: afterWare
+    _afterware: afterWare
     _logger: logger
     _log: boolean
+    _rateLimiter: rateLimiter
 
     constructor(port: number){
         
@@ -710,9 +717,11 @@ class Neutrino{
         this._logger = new logger()
         this._log = true;
 
-        this._middlewares = new middleWare()
-        this._afterWares = new afterWare()
+        this._middlewares = new middleWare(this._logger)
+        this._afterware = new afterWare(this._logger)
 
+        this._rateLimiter = new rateLimiter()
+        this.use(this._rateLimiter.rateLimiter.bind(this._rateLimiter))
 
         this._default404 = `    <div style=" display: flex;
                                     justify-content: center;
@@ -733,6 +742,34 @@ class Neutrino{
                             </div>` 
 
     }
+    // THIS METHODS CHANGES THE DEFAULT 404
+    set404(html:string){
+        this._default404 = html;
+    }
+
+    // 
+    use(middleware:Function,): void{
+        this._middlewares.addWare(middleware)
+    }
+    addMiddlWare(middleware:Function,): void{
+        this._middlewares.addWare(middleware)
+    }
+    addAfterWare(afterware: Function){
+        this._afterware.addWare(afterware)
+    }
+    disableLogging(){
+        this._log = false
+    }
+    enableLogginf(){
+        this._log = true
+    }
+    skipMiddleware(){
+        this._middlewares.currentWareIdx = this._middlewares.wares.length
+    }
+    skipAfterware(){
+        this._afterware.currentWareIdx = this._middlewares.wares.length
+    }
+
     /*
         
         FIND  THE LAST COMMON ROUTE OBJECT THAT MATCHS THE
@@ -865,8 +902,6 @@ class Neutrino{
 
                 }else {
                     try{
-                        this._middlewares.startMiddlewares(request,response)
-
                         route.func(request,response,dynamicVars)
                         if (!response.statusAlreadySet) {
                             response.statusCode = 200;
@@ -901,24 +936,7 @@ class Neutrino{
 
     }
 
-    // THIS METHODS CHANGES THE DEFAULT 404
-    set404(html:string){
-        this._default404 = html;
-    }
 
-    // 
-    use(middleware:Function,): void{
-        this._middlewares.addMiddlware(middleware)
-    }
-    addAfterWare(afterware: Function){
-        this._afterWares.addAfterWare(afterware)
-    }
-    disableLogging(){
-        this._log = false
-    }
-    enableLogginf(){
-        this._log = true
-    }
 
     // STARTS THE SERVER AND LISTENS FOR REQUEST SENT TO THE SERVER.
     start(port: number = this._port) {
@@ -951,9 +969,9 @@ class Neutrino{
                 [routeObj,dynamicVars] = this._mainDynammic.compareRoutes(url)
             }
 
-            this._middlewares.startMiddlewares(request,response)
+            this._middlewares.startWares(request,response)
             this.decideRequestFate(request, response, dynamicVars, routeObj)
-            this._afterWares.startAfterWares(request,response)
+            this._afterware.startWares(request,response)
 
             // END TIME CAPTURING 
             const requestEnd = performance.now();
