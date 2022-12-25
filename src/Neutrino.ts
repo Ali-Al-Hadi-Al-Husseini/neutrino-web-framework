@@ -264,10 +264,10 @@ class rateLimiter{
             res.setStatusCode(429)
             res.write('Too many requests. Please try again later.');
             res.end()
-            return false
+            return true
         }
         // If the request count is within the limit, continue to the next middleware or handler
-        return true
+        return false
       }
     
     setLimit(maxRequest:number,timePeriod:number){
