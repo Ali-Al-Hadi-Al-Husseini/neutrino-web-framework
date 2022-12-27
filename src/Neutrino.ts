@@ -1,10 +1,8 @@
-import { BlobOptions } from "buffer";
-
 const http = require("http");
 const fs = require('fs');
 const ejs = require('ejs')
 const path = require('path');
-
+const helmet = require('helmet')
 /* 
 
     START OF CONSTANTS 
@@ -168,7 +166,9 @@ class ware{
             if (this.currentWareIdx >= this.wares.length) return this.reset()
             this.wares[this.currentWareIdx](this.request,this.response,this.next.bind(this))
         }catch(err){
+
             this.Logger.addError(String(err))
+            this.next()
         }
 
     }
@@ -231,14 +231,14 @@ class rateLimiter{
     rateLimitCache: any
     maxRequests:number
     timePeriod: number
-    limitRequestRate: boolean
+
     constructor(){
         this.rateLimitCache = {}
         this.maxRequests = 100
         this.timePeriod = 60
-        this.limitRequestRate = false
+
     }
-    exceededLimit(req:neutrinoRequest, res:neutrinoResponse) {
+    rateLimit(req:neutrinoRequest, res:neutrinoResponse,next :Function) {
         // Get the current time
         const now = Date.now();
         // Check if the client's IP address is in the rate limit cache
@@ -264,10 +264,10 @@ class rateLimiter{
             res.setStatusCode(429)
             res.write('Too many requests. Please try again later.');
             res.end()
-            return true
+
         }
         // If the request count is within the limit, continue to the next middleware or handler
-        return false
+        next()
       }
     
     setLimit(maxRequest:number,timePeriod:number){
@@ -709,7 +709,7 @@ class Neutrino{
     _logger: logger
     _log: boolean
     _rateLimiter: rateLimiter
-
+    _allowedDoamins?: string[]
     constructor(port: number){
         
         this._server = http.createServer({ ServerResponse: neutrinoResponse ,IncomingMessage : neutrinoRequest});
@@ -776,11 +776,36 @@ class Neutrino{
     }
     addRateLimiting(maxRequest: number, timePeriod: number){
         this._rateLimiter.setLimit(maxRequest, timePeriod)
-        this._rateLimiter.limitRequestRate = true
+        this._middlewares.insertWare(this._rateLimiter.rateLimit.bind(this._rateLimiter),0)
 
     }
     resetLimit(maxRequest: number, timePeriod: number){
         this._rateLimiter.setLimit(maxRequest, timePeriod)
+    }
+    addStrictSecruityMeasures(){
+        this.use(helmet());
+        this.use(helmet.contentSecurityPolicy({
+        directives: {
+            defaultSrc: this._allowedDoamins != undefined ? this._allowedDoamins:["'self'"],
+            styleSrc: ["'self'", 'maxcdn.bootstrapcdn.com']
+        }
+        }));
+        this.use(helmet.dnsPrefetchControl());
+        this.use(helmet.expectCt());
+        this.use(helmet.frameguard({ action: 'deny' }));
+        this.use(helmet.hidePoweredBy());
+        this.use(helmet.hsts({ maxAge: 31536000 }));
+        this.use(helmet.ieNoOpen());
+        this.use(helmet.noSniff());
+        this.use(helmet.permittedCrossDomainPolicies());
+        this.use(helmet.xssFilter());
+    }
+    setAllowedDomains(Domains: string[]){
+        this._allowedDoamins = Domains
+        this.use(helmet.frameguard({
+            action: 'sameorigin',
+            frameAncestors: Domains
+          }))
     }
     /*
         
@@ -981,18 +1006,12 @@ class Neutrino{
                 [routeObj,dynamicVars] = this._mainDynammic.compareRoutes(url)
             }
 
-            if(this._rateLimiter.limitRequestRate){
-                if(!this._rateLimiter.exceededLimit(request,response)){
                     this._middlewares.startWares(request,response)
+                    if (!response.writableEnded){
                     this.decideRequestFate(request, response, dynamicVars, routeObj)
+                    }
                     this._afterware.startWares(request,response)
-                }
-            }
-            else{
-                this._middlewares.startWares(request,response)
-                this.decideRequestFate(request, response, dynamicVars, routeObj)
-                this._afterware.startWares(request,response)
-            }
+
 
             // END TIME CAPTURING 
             const requestEnd = performance.now();

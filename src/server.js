@@ -1,5 +1,5 @@
 const Neutrino_pack = require('./neutrino')
-
+const helmet = require('helmet')
 const Router = Neutrino_pack.Router
 const Neutrino = Neutrino_pack.Neutrino
 
@@ -39,17 +39,14 @@ let app = new Neutrino(5500);
             res.write("<h1>there " + dynamic['place'] + "/h1>");
         })
     
-    app.addStaticPath('C:\\Users\\lilo\\Documents\\GitHub\\neutrino-web-framework\\src\\static')
-    app.addRateLimiting(1,10)
+    app.addStaticPath('C:\\UserL\\lilo\\Documents\\GitHub\\neutrino-web-framework\\src\\static')
+    // app.addRateLimiting(10,1)
+    
+    app.addStrictSecruityMeasures()
 
-    app.use((req, res,next)=> {
-        console.log("===================    middleware acssecd here hola hola hola hello    =====================")
-        next()
-    })
 
      app.start()
 
-    
 }
 
 setup_Server()  
