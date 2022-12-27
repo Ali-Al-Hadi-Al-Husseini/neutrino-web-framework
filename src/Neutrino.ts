@@ -851,16 +851,17 @@ class Neutrino{
 
                 curr.setDynamicRoute(newRoute)
                 curr = newRoute
-
-            }else{
-                newRoute = new Route("/" + route);
-
-                let fullRoute = newRoute.fullRoute
-                // this._routesobjs[fullRoute] = newRoute
-
-                curr.addChild(newRoute);
-                curr = newRoute;
+                continue
             }
+
+            newRoute = new Route("/" + route);
+
+            let fullRoute = newRoute.fullRoute
+            // this._routesobjs[fullRoute] = newRoute
+
+            curr.addChild(newRoute);
+            curr = newRoute;
+            
         }   
         
         return curr
@@ -869,6 +870,7 @@ class Neutrino{
     addroute(url: string, routeFunc:Function,methods: string[]= ["GET"]):void{
 
         const urls = url.split('/');
+        let mainRoute = this._route;
 
         if(urls.length <= 2 && urls[1][0] == '<'){
 
@@ -878,31 +880,28 @@ class Neutrino{
             let newMainRoute = new Route(url,routeFunc,methods);
             this._route.addChild(newMainRoute);
 
+        }else if(mainRoute != null) {
+            
+            let lastCommonRoute = this.findLastCommon(url,mainRoute);
+            let finalRoute = this.continueConstruction(lastCommonRoute,url);
+
+            finalRoute.func = routeFunc
+            finalRoute.methods = methods
+
         }else{
-            let mainRoute = this._route;
-        
-            if (mainRoute != null){
-                let lastCommonRoute = this.findLastCommon(url,mainRoute);
-                let finalRoute = this.continueConstruction(lastCommonRoute,url);
+            
+            let lastCommonRoute = this.findLastCommon(url,this._mainDynammic);
+            let finalRoute = this.continueConstruction(lastCommonRoute,url);
 
-                finalRoute.func = routeFunc
-                finalRoute.methods = methods
+            finalRoute.func = routeFunc
+            finalRoute.methods = methods
 
-            }else{
-                
-                let lastCommonRoute = this.findLastCommon(url,this._mainDynammic);
-                let finalRoute = this.continueConstruction(lastCommonRoute,url);
+            this._mainDynammic.addChild(finalRoute)
 
-                finalRoute.func = routeFunc
-                finalRoute.methods = methods
-
-                this._mainDynammic.addChild(finalRoute)
-
-            }
+        }
     }
 
-    }
-
+    // adding routes for a specfic method
     get(route: string, routefunc: Function){
         this.addroute(route,routefunc,['GET'])
     }
@@ -975,52 +974,61 @@ class Neutrino{
     }
 
     
+    handleRequest(request: neutrinoRequest, response: neutrinoResponse){
+        try{
+        /* 
+            RECORDED THE START TIME OF THE SERVER RESPONDING TO THe REQUEST
+            TO MEASURE IT PERFORMANCE AND LOG IT
+        */
+        const requestStart = performance.now();
 
+        let url:string = request.url;
+        let possibleParams = url.split('?');
+
+        if(possibleParams[0] != url){url = possibleParams[0];}
+        console.log("Got a " + request.method + " request on " + url);
+
+        //FIND THE THE RIGHT ROUTE OBJECT FOR THE GIVEN URL
+        let routeObj:any;
+        let dynamicVars:any;
+
+        [routeObj,dynamicVars]  = this._route.compareRoutes(url)
+
+        if(routeObj == null && typeof this._mainDynammic != 'undefined' ){
+            [routeObj,dynamicVars] = this._mainDynammic.compareRoutes(url)
+        }
+
+        this._middlewares.startWares(request,response)
+        if (!response.writableEnded){
+            this.decideRequestFate(request, response, dynamicVars, routeObj)
+        }
+        this._afterware.startWares(request,response)
+
+        // END TIME CAPTURING 
+        if(this._log){this._logger.log(request,response,performance.now() - requestStart)}
+
+        }catch(err){
+            console.error(err)
+            this._logger.addError(String(err))
+            if(!response.writableEnded){
+                response.setStatusCode(500)
+                request.end()
+            }
+        }
+        
+    }
+    
 
     // STARTS THE SERVER AND LISTENS FOR REQUEST SENT TO THE SERVER.
     start(port: number = this._port) {
-        
         this._port = port
         this._server.listen(this._port)
         console.log("Neutrino Server live at http://127.0.0.1:" + this._port)
 
         // THE ON METHODS GIVES US THE ABILITY TO EXECUTE A FUNCTION WHEN A REQUEST IS RECIEVED
-        this._server.on('request', (request: neutrinoRequest, response: neutrinoResponse) => {
-            /* 
-                RECORDED THE START TIME OF THE SERVER RESPONDING TO THe REQUEST
-                TO MEASURE IT PERFORMANCE AND LOG IT
-            */
-            const requestStart = performance.now();
-
-            let url:string = request.url;
-            let possibleParams = url.split('?');
-
-            if(possibleParams[0] != url){url = possibleParams[0];}
-            console.log("Got a " + request.method + " request on " + url);
-
-            //FIND THE THE RIGHT ROUTE OBJECT FOR THE GIVEN URL
-            let routeObj:any;
-            let dynamicVars:any;
-
-            [routeObj,dynamicVars]  = this._route.compareRoutes(url)
-
-            if(routeObj == null && typeof this._mainDynammic != 'undefined' ){
-                [routeObj,dynamicVars] = this._mainDynammic.compareRoutes(url)
-            }
-
-            this._middlewares.startWares(request,response)
-            if (!response.writableEnded){
-            this.decideRequestFate(request, response, dynamicVars, routeObj)
-            }
-            this._afterware.startWares(request,response)
-
-
-            // END TIME CAPTURING 
-            const requestEnd = performance.now();
-            if(this._log){this._logger.log(request,response,requestEnd - requestStart)}
-        
-          });
+        this._server.on('request',this.handleRequest.bind(this));
     }
+
 
     // ADDS PATH TO STATIC PATH WHICH THE FRAMEWORK SREARCH FOR STATIC FILE FROM.
     addStaticPath(path:string){
@@ -1029,7 +1037,6 @@ class Neutrino{
 
     // CREATES STATIC FILE ROUTE THAT SERVE LOCAL STATICS FILE TO THE BROWSER.
     staticFilesRoute(){
-        
         const staticRouteFunc =  (request: neutrinoRequest, response: neutrinoResponse, dynamicvars: any) =>{
             let neededFile:string = ''
             
@@ -1042,6 +1049,10 @@ class Neutrino{
             response.setStatusCode(200)
             response.setHeader('Content-Type',fileTypesToContentType[path.extname(neededFile)])
 
+            if (neededFile == ""){
+                response.setStatusCode(500)
+                response.end()
+            }
             try{
 
                 const data =  readFile(neededFile,this._logger)
