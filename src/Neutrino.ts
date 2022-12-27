@@ -915,64 +915,66 @@ class Neutrino{
     delete(route: string, routefunc: Function){
         this.addroute(route,routefunc,['delete'])
     }
+
+
     // 
     decideRequestFate(request: neutrinoRequest, response: neutrinoResponse,dynamicVars: Record<string,string>  | null,route: Route){
-        if ( route != null){
-            if(route.methods.includes(request.method)){
-            
-                if (route.dynamic){
-                    
-                    try{
-                        route.func(request,response,dynamicVars)
-                        if (!response.statusAlreadySet) {
-                            response.statusCode = 200;
-                        }
-                        response.end()
-                        console.log("reponse sent to " + request.socket.remoteAddress)
-
-                    }catch(err){
-
-                        this._logger.errorsLog += err + '\n'
-                        response.statusCode = 500;
-                        response.end()
-                    }
-
-                }else {
-                    try{
-                        route.func(request,response,dynamicVars)
-                        if (!response.statusAlreadySet) {
-                            response.statusCode = 200;
-                        }
-                        response.end()
-                        console.log("reponse sent to " + request.socket.remoteAddress)
-
-                    }catch(err){
-                        this._logger.errorsLog += err + '\n'
-                        response.statusCode = 500;
-                        response.end()
-                    }
-                    
-                }
-            }else{
-                //  method not allowed 405 error 
-                
-                response.statusCode =  405
-                console.log("a " + request.method + " request on "+ request.url + " not allowed ")
-                response.write("method not allowed")
-                response.end()
-            }
-        }else{
+        try{
+        if ( route == null) {
             // page not found error 404 error 
             response.statusCode =  404
             console.log("repsonse on " + request.url + " failed")
             response.write(this._default404)
             response.end()
 
+        } else if(!route.methods.includes(request.method)){
+            //  method not allowed 405 error 
+            response.statusCode =  405
+            console.log("a " + request.method + " request on "+ request.url + " not allowed ")
+            response.write("method not allowed")
+            response.end()
+             
+        }else if (route.dynamic){
+            try{
+                route.func(request,response,dynamicVars)
+                if (!response.statusAlreadySet) {
+                    response.statusCode = 200;
+                }
+                response.end()
+                console.log("reponse sent to " + request.socket.remoteAddress)
+
+            }catch(err){
+
+                this._logger.errorsLog += err + '\n'
+                response.statusCode = 500;
+                response.end()
+            }
+
+        }else {
+            try{
+                route.func(request,response,dynamicVars)
+                if (!response.statusAlreadySet) {
+                    response.statusCode = 200;
+                }
+                response.end()
+                console.log("reponse sent to " + request.socket.remoteAddress)
+                
+
+            }catch(err){
+                this._logger.errorsLog += err + '\n'
+                response.statusCode = 500;
+                response.end()
+                
+            }
+             
+        }} 
+        catch(err){
+            this._logger.addError(String(err))
+            console.error(err)
         }
-
-
     }
 
+    
 
 
     // STARTS THE SERVER AND LISTENS FOR REQUEST SENT TO THE SERVER.
@@ -1006,11 +1008,11 @@ class Neutrino{
                 [routeObj,dynamicVars] = this._mainDynammic.compareRoutes(url)
             }
 
-                    this._middlewares.startWares(request,response)
-                    if (!response.writableEnded){
-                    this.decideRequestFate(request, response, dynamicVars, routeObj)
-                    }
-                    this._afterware.startWares(request,response)
+            this._middlewares.startWares(request,response)
+            if (!response.writableEnded){
+            this.decideRequestFate(request, response, dynamicVars, routeObj)
+            }
+            this._afterware.startWares(request,response)
 
 
             // END TIME CAPTURING 
@@ -1072,4 +1074,3 @@ module.exports.Response = neutrinoResponse
 module.exports.Request = neutrinoRequest
 module.exports.Router = Router
 module.exports.Route = Route
-
