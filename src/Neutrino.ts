@@ -350,31 +350,39 @@ class logger{
 class Route{
     parent: any;
     children: Route[];
-    func: Function;
     methods: string[];
     route:string;
     fullRoute:string;
     dynamic:boolean;
     dynamicRoute?: any;
-
+    methodsFuncs: Record<string,Function>;
     // dynamicVar:string;
 
     constructor(route: string, func: Function = (req:any,res:any)=>{res.write(page404)},methods: string[]=["GET"]){
 
-
         this.children = [];
-        this.func = func;
         this.route = route;
         this.methods = methods;
         this.fullRoute = route;
         this.dynamic = route[1] === '<' ? true : false || route[0] === '<' ? true : false 
         this.parent =  null
         this.dynamicRoute= null
+        this.methodsFuncs = this.populateMethodsFuncs(func)
 
     }
     // ADDS A CHILD TO THE CURRENT ROUTE INTANCE 
-
-    
+    populateMethodsFuncs(func: Function){
+        let methodsFuncs:Record<string,Function> = {}
+        for(const method of this.methods){
+            methodsFuncs[method] = func
+        }
+        return methodsFuncs
+    }
+    addMethod(method:string,Function:Function){
+        this.methods.push(method)
+        this.methodsFuncs[method] = Function
+        
+    }
     addChild(child:Route){
         if(child.route[1] === '<'){
             this.dynamicRoute = child;
@@ -590,8 +598,8 @@ class Router{
         let lastFound = this._app.findLastCommon(mainRoute,this._app._route)
         this._mainRoute = this._app.continueConstruction(lastFound,mainRoute)
         
-        this._mainRoute.func = routeFunc
         this._mainRoute.methods = methods
+        this._mainRoute.methodsFuncs = this._mainRoute.populateMethodsFuncs(routeFunc)
         
     }
     /*
@@ -650,9 +658,9 @@ class Router{
         const urls = url.split('/');
 
         if (url == '' || url== '/'){
-            
-            this._mainRoute.func = routeFunc
+
             this._mainRoute.methods = methods
+            this._mainRoute.methodsFuncs = this._mainRoute.populateMethodsFuncs(routeFunc)
 
         }else if((urls.length <= 2 && urls[1][0] == '<') ){
 
@@ -667,8 +675,9 @@ class Router{
                 let lastCommonRoute = this.findLastCommon(url,mainRoute);
                 let finalRoute = this.continueConstruction(lastCommonRoute,url);
 
-                finalRoute.func = routeFunc
                 finalRoute.methods = methods
+
+                finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc)
 
             
             }else{
@@ -676,8 +685,8 @@ class Router{
                 let lastCommonRoute = this.findLastCommon(url,this._mainRoute.dynamicRoute);
                 let finalRoute = this.continueConstruction(lastCommonRoute,url);
 
-                finalRoute.func = routeFunc
                 finalRoute.methods = methods
+                finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc)
 
                 this._mainRoute.dynamicRoute.addChild(finalRoute)
 
@@ -832,7 +841,7 @@ class Neutrino{
 
         }
         return curr
-        }
+    }
     
      // ADD ROUTES TO THE TREE SO IT CANNED BE PARSED TO GET THR URL 
     continueConstruction(lastRoute: Route,url: string): Route{
@@ -871,13 +880,16 @@ class Neutrino{
 
         const urls = url.split('/');
         let mainRoute = this._route;
+        let newRoute:Route
 
         if(urls.length <= 2 && urls[1][0] == '<'){
 
             this._mainDynammic = new Route(urls[1],routeFunc,methods)
+            newRoute =  this._mainDynammic 
 
         }else if(urls.length <= 2){
             let newMainRoute = new Route(url,routeFunc,methods);
+            newRoute =  newMainRoute
             this._route.addChild(newMainRoute);
 
         }else if(mainRoute != null) {
@@ -885,20 +897,24 @@ class Neutrino{
             let lastCommonRoute = this.findLastCommon(url,mainRoute);
             let finalRoute = this.continueConstruction(lastCommonRoute,url);
 
-            finalRoute.func = routeFunc
             finalRoute.methods = methods
+            finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc)
+            newRoute =  finalRoute
+
 
         }else{
             
             let lastCommonRoute = this.findLastCommon(url,this._mainDynammic);
             let finalRoute = this.continueConstruction(lastCommonRoute,url);
 
-            finalRoute.func = routeFunc
             finalRoute.methods = methods
+            finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc)
 
             this._mainDynammic.addChild(finalRoute)
+            newRoute =  finalRoute
 
         }
+        this._routesobjs[url] = newRoute
     }
 
     // adding routes for a specfic method
@@ -935,7 +951,7 @@ class Neutrino{
              
         }else if (route.dynamic){
             try{
-                route.func(request,response,dynamicVars)
+                route.methodsFuncs[request.method](request,response,dynamicVars)
                 if (!response.statusAlreadySet) {
                     response.statusCode = 200;
                 }
@@ -951,7 +967,7 @@ class Neutrino{
 
         }else {
             try{
-                route.func(request,response,dynamicVars)
+                route.methodsFuncs[request.method](request,response,dynamicVars)
                 if (!response.statusAlreadySet) {
                     response.statusCode = 200;
                 }
@@ -992,8 +1008,12 @@ class Neutrino{
         let routeObj:any;
         let dynamicVars:any;
 
-        [routeObj,dynamicVars]  = this._route.compareRoutes(url)
-
+        if(url in this._routesobjs){
+            routeObj = this._routesobjs[url]
+            dynamicVars = {}
+        }else{
+            [routeObj,dynamicVars]  = this._route.compareRoutes(url)
+        }
         if(routeObj == null && typeof this._mainDynammic != 'undefined' ){
             [routeObj,dynamicVars] = this._mainDynammic.compareRoutes(url)
         }
