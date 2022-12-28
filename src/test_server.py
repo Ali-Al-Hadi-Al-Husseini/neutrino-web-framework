@@ -15,8 +15,6 @@ class testServer(unittest.TestCase):
                     ('/ali/hello/ali',"<h1>ALi is  here " + 'hello ' + "ali" + ' </h1>'),
                     ('/there/newyork',"<h1>there newyork/h1>"),
                     ('/there',"<h1> there </h1>")
-
-
         ]
 
         for route,expected_respone in test_cases:

@@ -310,7 +310,7 @@ class logger{
             + '----------------------------- Errors Log --------------------------------\n'
             + this.errorsLog + '\n'
             + "-------------------------------------------------------------------------\n"
-            + "---------------------------- Developed Logsqd---------------------------------\n"
+            + "---------------------------- Developer Logs---------------------------------\n"
             + this.logMessage
             + "-------------------------------------------------------------------------\n")
 
@@ -483,6 +483,9 @@ class neutrinoResponse extends ServerResponseClass{
     }
     render(fileName:string, templateVars:any){
         const html = ejs.renderFile(fileName,templateVars);
+        this.setHeader(
+            'Content-Type', 'text/html'
+        );
         this.send(html);
         return this
 
@@ -500,7 +503,13 @@ class neutrinoResponse extends ServerResponseClass{
         this.statusAlreadySet= true
         return this
 
-      }
+    }
+    sendHtml(html:string){
+        this.setHeader(
+            'Content-Type', 'text/html'
+        );
+        this.send(html);        
+    }
 }
 // REQUEST CLASS ADDS FUNCTIONALITY AND PROPERTIES  TO THE REQUEST OBJECT
 class neutrinoRequest extends IncomingMessageClass{
@@ -756,6 +765,18 @@ class Neutrino{
                             </div>` 
 
     }
+    get(route: string, routefunc: Function){
+        this.addroute(route,routefunc,['GET'])
+    }
+    post(route: string, routefunc: Function){
+        this.addroute(route,routefunc,['post'])
+    }
+    put(route: string, routefunc: Function){
+        this.addroute(route,routefunc,['PUT'])
+    }
+    delete(route: string, routefunc: Function){
+        this.addroute(route,routefunc,['delete'])
+    }
     // THIS METHODS CHANGES THE DEFAULT 404
     set404(html:string){
         this._default404 = html;
@@ -793,12 +814,7 @@ class Neutrino{
     }
     addStrictSecruityMeasures(){
         this.use(helmet());
-        this.use(helmet.contentSecurityPolicy({
-        directives: {
-            defaultSrc: this._allowedDoamins != undefined ? this._allowedDoamins:["'self'"],
-            styleSrc: ["'self'", 'maxcdn.bootstrapcdn.com']
-        }
-        }));
+
         this.use(helmet.dnsPrefetchControl());
         this.use(helmet.expectCt());
         this.use(helmet.frameguard({ action: 'deny' }));
@@ -815,6 +831,12 @@ class Neutrino{
             action: 'sameorigin',
             frameAncestors: Domains
           }))
+          this.use(helmet.contentSecurityPolicy({
+            directives: {
+                defaultSrc: this._allowedDoamins != undefined ? this._allowedDoamins:["'self'"],
+                styleSrc: ["'self'", 'maxcdn.bootstrapcdn.com',...Domains]
+            }
+            }));
     }
     /*
         
@@ -882,7 +904,12 @@ class Neutrino{
         let mainRoute = this._route;
         let newRoute:Route
 
-        if(urls.length <= 2 && urls[1][0] == '<'){
+        if(url in this._routesobjs){
+            newRoute = this._routesobjs[url]
+            for(const method of methods){
+                newRoute.methodsFuncs[method] = routeFunc
+            }
+        }else if(urls.length <= 2 && urls[1][0] == '<'){
 
             this._mainDynammic = new Route(urls[1],routeFunc,methods)
             newRoute =  this._mainDynammic 
@@ -918,19 +945,6 @@ class Neutrino{
     }
 
     // adding routes for a specfic method
-    get(route: string, routefunc: Function){
-        this.addroute(route,routefunc,['GET'])
-    }
-    post(route: string, routefunc: Function){
-        this.addroute(route,routefunc,['post'])
-    }
-    put(route: string, routefunc: Function){
-        this.addroute(route,routefunc,['PUT'])
-    }
-    delete(route: string, routefunc: Function){
-        this.addroute(route,routefunc,['delete'])
-    }
-
 
     // 
     decideRequestFate(request: neutrinoRequest, response: neutrinoResponse,dynamicVars: Record<string,string>  | null,route: Route){
@@ -1070,7 +1084,7 @@ class Neutrino{
             response.setHeader('Content-Type',fileTypesToContentType[path.extname(neededFile)])
 
             if (neededFile == ""){
-                response.setStatusCode(500)
+                response.setStatusCode(404)
                 response.end()
             }
             try{

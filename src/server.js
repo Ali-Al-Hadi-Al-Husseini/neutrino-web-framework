@@ -9,11 +9,14 @@ let app = new Neutrino(5500);
  function setup_Server(){
 
     app.addroute("/<lilo>", (re, res, dynamicpar) => {
-        res.write("<h1>ALi is  here " + dynamicpar["lilo"] + ' </h1>');
+        res.sendHtml("<h1>ALi is  here " + dynamicpar["lilo"] + ' </h1>');
     });
     app.addroute("/ali",  (req, res )=> {
         res.write("<h1>ALi is  here" + "alllllllll" + ' </h1>');
     });
+    app.post('/ali',(req, res )=> {
+        res.write("<h1>ALi is  here" + "111111" + ' </h1>');
+    })
 
     app.addroute("/ali/<lilo>",  (req, res,dynamic )=> {
         res.write("<h1>ALi is  here " + dynamic["lilo"] + ' </h1>');
