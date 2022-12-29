@@ -798,11 +798,17 @@ class Neutrino{
     enableLogginf(){
         this._log = true
     }
-    skipMiddleware(){
+    skipMiddlewares(){
         this._middlewares.currentWareIdx = this._middlewares.wares.length
     }
-    skipAfterware(){
+    skipAfterwares(){
         this._afterware.currentWareIdx = this._middlewares.wares.length
+    }
+    insertMiddleware(middlware:Function, idx:number){
+        this._middlewares.insertWare(middlware,idx)
+    }
+    insertAfterware(afterware:Function, idx:number){
+        this._middlewares.insertWare(afterware,idx)
     }
     addRateLimiting(maxRequest: number, timePeriod: number){
         this._rateLimiter.setLimit(maxRequest, timePeriod)
