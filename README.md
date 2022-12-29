@@ -3,12 +3,12 @@ Neutrino is a web framework made with typescript made by Ali Al Hadi Al Husseini
 
 #### Intalizing An App 
 ```javascript
-const Neutrino = require("./neutrino").Neutrino
+const Neutrino = require("./neutrino")
 const app = new  Neutrino() // intalizing  a port now is optional
 ```
 #### Adding A Route
 ```javascript
-const Neutrino = require("./neutrino").Neutrino
+const Neutrino = require("./neutrino")
 const app = new  Neutrino()
 
 app.addroute("/main", (req, res) => {
@@ -18,7 +18,7 @@ app.addroute("/main", (req, res) => {
 ```
 #### Adding A Dynamic Route
 ```javascript
-const Neutrino = require("./neutrino").Neutrino
+const Neutrino = require("./neutrino")
 const app = new  Neutrino()
 
 app.addroute("/<name>", (req, res,dynamicParts) => {
@@ -28,7 +28,7 @@ app.addroute("/<name>", (req, res,dynamicParts) => {
 ```
 #### Adding A Allowed Methods
 ```javascript
-const Neutrino = require("./neutrino").Neutrino
+const Neutrino = require("./neutrino")
 const app = new  Neutrino()
 
 app.addroute("/main", (req, res) => {
@@ -38,23 +38,23 @@ app.addroute("/main", (req, res) => {
 ```
 #### Adding A middleware
 ```javascript
-const Neutrino = require("./neutrino").Neutrino
+const Neutrino = require("./neutrino")
 const app = new  Neutrino()
 function middleware(req,res,next){
     //req and res are request and reponse object 
     //next is the next middleware
-    // and if the middleware is the final one then the main function is next
     //does something
+    //you always should call the next function or the other middlwares will not excute
 }
-app.addroute("/main", (req, res) => {
-     res.write("<h1>Hello World </h1>");
- },["GET","POST"],middleware);
+app.addMiddlWare(middlware)
+// or you can also use app.use method
+app.use(middlware)
  
 ```
 
 #### Adding A Router
 ```javascript
-const Neutrino = require("./neutrino").Neutrino
+const Neutrino = require("./neutrino")
 const Router = require("./neutrino").Router
 const app = new  Neutrino()
 const router = new Router(app,'/main',(req:any, res:any, dynamicpar:any) => {
