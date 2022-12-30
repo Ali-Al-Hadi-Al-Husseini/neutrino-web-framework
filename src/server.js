@@ -36,16 +36,19 @@ let app = new Neutrino(5500);
     let router = new Router(app,'/there',(req, res, dynamicpar) => {
             res.write("<h1> there </h1>");
         })
-
+    app.addroute('/halo',(req,res,dynamicpar)=>{
+        res.render('C:\\Users\\lilo\\Documents\\GitHub\\neutrino-web-framework\\src\\static\\index.ejs')
+    })
     // "<h1>ALi is  here " + dynamic["lilo"] + " " +dynamic['mimo'] + " "+ dynamic["pat"] + ' </h1>'
     router.addRoute("/<place>",(req, res,dynamic ) => {
             res.write("<h1>there " + dynamic['place'] + "/h1>");
+            res.end()
         })
     
     app.addStaticPath('C:\\UserL\\lilo\\Documents\\GitHub\\neutrino-web-framework\\src\\static')
     // app.addRateLimiting(10,1)
     
-    app.addStrictSecruityMeasures()
+    // app.addStrictSecruityMeasures()
 
 
      app.start()

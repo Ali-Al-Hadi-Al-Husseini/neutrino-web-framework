@@ -478,15 +478,21 @@ class neutrinoResponse extends ServerResponseClass{
         this.setHeader(
             'Content-Type', 'application/json'
         );
-        this.send(JSON.stringify(json))
+        this.write(JSON.stringify(json))
         return this
     }
-    render(fileName:string, templateVars:any){
-        const html = ejs.renderFile(fileName,templateVars);
+    // to change the templating framework just replac ejs with framework you want
+    render(fileName:string, templateVars:any={}){
+        let html:string = ''
+
+        ejs.renderFile(fileName,templateVars,(err:any, string:string)=>{
+            if (err){ throw new Error("ejs.render file producing and error") }
+            html = string
+        });
         this.setHeader(
             'Content-Type', 'text/html'
         );
-        this.send(html);
+        this.sendHtml(html);
         return this
 
     }
@@ -508,7 +514,7 @@ class neutrinoResponse extends ServerResponseClass{
         this.setHeader(
             'Content-Type', 'text/html'
         );
-        this.send(html);        
+        this.write(html);        
     }
 }
 // REQUEST CLASS ADDS FUNCTIONALITY AND PROPERTIES  TO THE REQUEST OBJECT
@@ -782,7 +788,7 @@ class Neutrino{
         this._default404 = html;
     }
 
-    // 
+    // adding middlware 
     use(middleware:Function,): void{
         this._middlewares.addWare(middleware)
     }

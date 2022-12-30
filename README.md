@@ -41,7 +41,7 @@ app.addroute("/main", (req, res) => {
      res.write("<h1>Hello World !</h1>");
  });
 ```
-###### Re-initializing the route causes the route functions and methods to be overwritten 
+###### Re-initializing the route causes the existing functions and methods associated with it to be replaced. In this case, the overwrite resulted in the '/main' route returning "<h1>Hello World !</h1>" instead of "<h1>Hello World </h1>"
 
 #### Adding A Allowed Methods
 ```javascript
@@ -118,7 +118,7 @@ function afterware(req,res,next){
 app.addAfterWare(afterware)
 
 ```
-#### inserting middlware and after wares
+#### inserting middlware and afterwares
 ```javascript
 const Neutrino = require("./neutrino")
 const app = new  Neutrino()
@@ -129,7 +129,7 @@ function afterware(req,res,next){
 app.insertAfterwares(afterware,0)
 
 ```
-##### this makes the afterware be excuted at first you can use app.insertMiddleware for middlwares 
+##### This causes the aftereware to be executed first. You can use app.insertMiddleware to insert middlewares.
 
 #### Skipping middlware and after wares
 ```javascript
@@ -146,6 +146,47 @@ app.addAfterWare(afterware)
 
 ```
 ###### If you call the app.skipAfterwares/skipMiddlewares it makes the app skip all remaing middlwares
+
+
+### Request and Response Methods
+#### Request Methods and  Propertiesc
+```javascript
+const Neutrino = require("./neutrino")
+const app = new  Neutrino()
+app.addroute('/main',(request,response) =>{
+
+request.ip // returns the ip-addres of the request
+request.cookies// returns the cookies of the request
+request.params // returns the parameters of the request
+request.method// returns the method of the request
+})
+
+```
+##### You can also use all of methods and properties of  http IncomingMessage Class [Visit Nodejs documention for more information](https://nodejs.org/api/http.html#class-httpserverresponse)
+
+#### Response Methods and  Properties
+```javascript
+const Neutrino = require("./neutrino")
+const app = new  Neutrino()
+app.addroute('/main',(request,response) =>{
+
+let javascriptObject = {'first':1,'2nd':2}
+let path = '\\static\\main.ejs'
+let templateVars = {'title':'main','name':'hello'}
+let statsCode = 200
+let redirctUrl = "/main/home"
+let html  = "<h1>Hello World!</h1>"
+
+// you can't use all of them together  
+response.sendJson(javascriptObject) // takes one argument which is javascript object and transfer it to string and then writes it to the response 
+response.render(path,templateVars)// takes two arguments first file path and js object and then renders it with ejs
+response.setStatusCode(statsCode) // takes one argument which is number and set reponse status code  and returns reponse object(self)
+response.redirect(redirctUrl)//takes one argument url and then redirects it to the given url and returns reponse object(self)
+response.sendHtml(html)// take one argument text/html and writes the html to the response nd se the conetent-type header to 'text/html'
+})
+
+```
+##### You can also use all of methods and properties of  http IncomingMessage Class [Visit Nodejs documention for more information](https://nodejs.org/api/http.html#class-httpincomingmessage)
 
 
 
