@@ -9,17 +9,19 @@ class testServer(unittest.TestCase):
                     ('/','<h1>Neutrino</h1>'),
                     ('/me','||||||||||||||||||||||||||||||'),
                     ('/me/john',"||||||||||||||" + "john"+ "||||||||||||||||"),
+                    ('/me/ali',"<h1>ALi is  here" + "alllllllll" + ' </h1>'     ),
                     ('/hola',"<h1>ALi is  here " + 'hola' + ' </h1>'),
                     ('/ali',"<h1>ALi is  here" + "alllllllll" + ' </h1>'),
                     ('/ali/hello',"<h1>ALi is  here " + 'hello' + ' </h1>'),
                     ('/ali/hello/ali',"<h1>ALi is  here " + 'hello ' + "ali" + ' </h1>'),
                     ('/there/newyork',"<h1>there newyork/h1>"),
-                    ('/there',"<h1> there </h1>")
+                    ('/there',"<h1> there </h1>"),
+                    ('/halo',"""<p>This is paragraph number 0</p> <p>This is paragraph number 1</p> <p>This is paragraph number 2</p> <p>This is paragraph number 3</p> <p>This is paragraph number 4</p> """)
         ]
 
         for route,expected_respone in test_cases:
             response = get('http://127.0.0.1:5500' + route)
-            
+
             self.assertEqual(response.text,expected_respone)
 
 
