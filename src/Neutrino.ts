@@ -79,23 +79,23 @@ const fileTypesToContentType:Record<string,string> = {
     START OF GLOBAL FUNCTION 
 
 */
-    // READS HTML FILE AND GIVES THE OUT AND CHANGES THE HEAD OF THE RESPONSE
-function readhtmlfile(path: string,res: ServerResponse, logger: logger){
-        try{
-            res.writeHead(200, {
-                'Content-Type': 'text/html'
-            });
+//     // READS HTML FILE AND GIVES THE OUT AND CHANGES THE HEAD OF THE RESPONSE
+// function readhtmlfile(path: string,res: ServerResponse, logger: logger){
+//         try{
+//             res.writeHead(200, {
+//                 'Content-Type': 'text/html'
+//             });
 
-            const data = fs.readFile(path,'utf8')
-            return data
+//             const data = fs.readFile(path,'utf8')
+//             return data
 
-        }catch (error){
-            logger.errorsLog += error + '\n'
+//         }catch (error){
+//             logger.errorsLog += error + '\n'
 
-            console.error(error)
-        }
+//             console.error(error)
+//         }
         
-    }
+//     }
 
 function fileExists(filePath:string, logger: logger) {
     try {
@@ -836,6 +836,7 @@ class Neutrino{
         this.use(helmet.noSniff());
         this.use(helmet.permittedCrossDomainPolicies());
         this.use(helmet.xssFilter());
+        this.use(corsMiddleware)
     }
     setAllowedDomains(Domains: string[]){
         this._allowedDoamins = Domains
@@ -1126,8 +1127,12 @@ class Neutrino{
 
 
 module.exports.Neutrino = Neutrino
-module.exports.readhtmlfile = readhtmlfile
+// module.exports.readhtmlfile = readhtmlfile
 module.exports.Response = neutrinoResponse
 module.exports.Request = neutrinoRequest
 module.exports.Router = Router
 module.exports.Route = Route
+module.exports.corsMiddleware = corsMiddleware
+module.exports.logger = logger
+module.exports.Wares = ware
+module.exports.rateLimiter = rateLimiter

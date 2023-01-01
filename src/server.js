@@ -2,14 +2,16 @@ const Neutrino_pack = require('./neutrino')
 const helmet = require('helmet')
 const Router = Neutrino_pack.Router
 const Neutrino = Neutrino_pack.Neutrino
+const fs = require('fs');
 
 
 let app = new Neutrino(5500);
 
  function setup_Server(){
 
-    app.addroute("/<lilo>", (re, res, dynamicpar) => {
+    app.addroute("/<lilo>", (req, res, dynamicpar) => {
         res.sendHtml("<h1>ALi is  here " + dynamicpar["lilo"] + ' </h1>');
+
     });
     app.addroute("/ali",  (req, res )=> {
         res.sendHtml("<h1>ALi is  here" + "alllllllll" + ' </h1>');
