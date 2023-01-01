@@ -61,3 +61,38 @@ test('next calls the reset method if currentWareIdx is greater than or equal to 
     expect(ware.wares).not.toContain(middleware);
   });
   
+  test('insertWare inserts the specified middleware into the wares array at the specified index', () => {
+    const middleware = () => {};
+    const middleware1 = jest.fn()
+  
+    ware.insertWare(middleware, 0);
+    expect(ware.wares[0]).toBe(middleware);
+  
+    ware.insertWare(middleware1,0)
+  
+    expect(ware.wares[0]).toBe(middleware1);
+    expect(ware.wares[1]).toBe(middleware);
+  
+  });
+  
+  test('middlewares are executed in the correct order', () => {
+      const middlewares = [jest.fn(), jest.fn(), jest.fn()];
+      let ouput = []
+      let expectedOutput = [0,1,2]
+    
+      middlewares.forEach((middleware,i) => ware.addWare((req,res,next) => {
+          expect(req).toBe(mockRequest)
+          expect(res).toBe(mockResponse)
+          ouput.push(i)
+  
+          middleware()
+          next()
+      
+      }));
+      ware.startWares(mockRequest, mockResponse);
+    
+      middlewares.forEach((middleware) => {
+        expect(middleware).toHaveBeenCalled();
+      });
+      expect(ouput).toEqual(expectedOutput)
+    });
