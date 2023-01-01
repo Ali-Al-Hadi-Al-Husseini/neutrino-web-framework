@@ -40,3 +40,24 @@ test('next calls the current middleware and increments the currentWareIdx', () =
   expect(ware.currentWareIdx).toBe(0);
 });
 
+test('next calls the reset method if currentWareIdx is greater than or equal to the length of the wares array', () => {
+    const reset = jest.fn();
+    ware.currentWareIdx = 1;
+    ware.wares = [];
+    ware.reset = reset;
+    ware.next();
+    expect(reset).toHaveBeenCalled();
+  });
+  
+  test('reset sets the currentWareIdx to -1', () => {
+    ware.reset();
+    expect(ware.currentWareIdx).toBe(-1);
+  });
+  
+  test('removeWare removes the specified middleware from the wares array', () => {
+    const middleware = () => {};
+    ware.addWare(middleware)
+    ware.removeWare(middleware);
+    expect(ware.wares).not.toContain(middleware);
+  });
+  
