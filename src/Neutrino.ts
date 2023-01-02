@@ -102,7 +102,7 @@ function fileExists(filePath:string, logger: logger) {
         return fs.statSync(filePath).isFile();
     } catch (err) {
         logger.errorsLog += err + '\n'
-
+        console.error(err)
         return false;
     }
     }
@@ -166,6 +166,7 @@ class ware{
             if (this.currentWareIdx >= this.wares.length) return this.reset()
             this.wares[this.currentWareIdx](this.request,this.response,this.next.bind(this))
         }catch(err){
+            console.error(err)
 
             this.Logger.addError(String(err))
             this.next()
@@ -986,7 +987,8 @@ class Neutrino{
                 console.log("reponse sent to " + request.socket.remoteAddress)
 
             }catch(err){
-
+                console.error(err)
+                
                 this._logger.errorsLog += err + '\n'
                 response.statusCode = 500;
                 response.end()
@@ -1003,6 +1005,7 @@ class Neutrino{
                 
 
             }catch(err){
+                console.error(err)
                 this._logger.errorsLog += err + '\n'
                 response.statusCode = 500;
                 response.end()
@@ -1107,6 +1110,8 @@ class Neutrino{
     
             }catch (error){
                 this._logger.errorsLog += error + '\n'
+                console.error(error)
+
                 response.setStatusCode(500)
 
             }
