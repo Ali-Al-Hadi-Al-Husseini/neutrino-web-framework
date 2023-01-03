@@ -58,7 +58,6 @@ app.addStaticPath('C:\\UserL\\lilo\\Documents\\GitHub\\neutrino-web-framework\\s
 
 // app.addStrictSecruityMeasures()
 
-
-    app.start()
+app.start()
 
 

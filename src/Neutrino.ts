@@ -827,7 +827,6 @@ class Neutrino{
     }
     addStrictSecruityMeasures(){
         this.use(helmet());
-
         this.use(helmet.dnsPrefetchControl());
         this.use(helmet.expectCt());
         this.use(helmet.frameguard({ action: 'deny' }));
