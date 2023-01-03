@@ -102,7 +102,7 @@ function fileExists(filePath:string, logger: logger) {
         return fs.statSync(filePath).isFile();
     } catch (err) {
         logger.errorsLog += err + '\n'
-        console.error(err)
+        // console.error(err)
         return false;
     }
     }
@@ -114,7 +114,7 @@ function readFile(path: string, logger: logger) {
         return data;
     }
     catch (err) {
-        console.error(err);
+        // console.error(err);
         logger.errorsLog += err + '\n'
     }
     }
@@ -166,7 +166,7 @@ class ware{
             if (this.currentWareIdx >= this.wares.length) return this.reset()
             this.wares[this.currentWareIdx](this.request,this.response,this.next.bind(this))
         }catch(err){
-            console.error(err)
+            // console.error(err)
 
             this.Logger.addError(String(err))
             this.next()
@@ -179,7 +179,9 @@ class ware{
     removeWare(ware:Function) {
   
         const index = this.wares.indexOf(ware);
-        if (index == -1) return console.error("Tried to remove ware that is not added") 
+        if (index == -1) {
+            // console.error("Tried to remove ware that is not added") 
+        }
         this.wares.splice(index, 1);
 
     }
@@ -475,25 +477,25 @@ class neutrinoResponse extends ServerResponseClass{
         this.statusAlreadySet = false;
     }
 
-    sendJson(json:{}){
+    async sendJson(json:{}){
         this.setHeader(
             'Content-Type', 'application/json'
         );
-        this.write(JSON.stringify(json))
+        await this.write(JSON.stringify(json))
         return this
     }
     // to change the templating framework just replac ejs with framework you want
-    render(fileName:string, templateVars:any={}){
+    async render(fileName:string, templateVars:any={}){
         let html:string = ''
 
-        ejs.renderFile(fileName,templateVars,(err:any, string:string)=>{
+        await ejs.renderFile(fileName,templateVars,(err:any, string:string)=>{
             if (err){ throw new Error("ejs.render file producing and error") }
             html = string
         });
         this.setHeader(
             'Content-Type', 'text/html'
         );
-        this.sendHtml(html);
+        await this.sendHtml(html);
         return this
 
     }
@@ -511,11 +513,11 @@ class neutrinoResponse extends ServerResponseClass{
         return this
 
     }
-    sendHtml(html:string){
+    async sendHtml(html:string){
         this.setHeader(
             'Content-Type', 'text/html'
         );
-        this.write(html);        
+        await this.write(html);        
     }
 }
 // REQUEST CLASS ADDS FUNCTIONALITY AND PROPERTIES  TO THE REQUEST OBJECT
@@ -746,7 +748,7 @@ class Neutrino{
         this.staticFilesRoute()
 
         this._logger = new logger()
-        this._log = true;
+        this._log = false;
 
         this._middlewares = new middleWare(this._logger)
         this._afterware = new afterWare(this._logger)
@@ -802,7 +804,7 @@ class Neutrino{
     disableLogging(){
         this._log = false
     }
-    enableLogginf(){
+    enableLogging(){
         this._log = true
     }
     skipMiddlewares(){
@@ -960,66 +962,66 @@ class Neutrino{
     // adding routes for a specfic method
 
     // 
-    decideRequestFate(request: neutrinoRequest, response: neutrinoResponse,dynamicVars: Record<string,string>  | null,route: Route){
+    async decideRequestFate(request: neutrinoRequest, response: neutrinoResponse,dynamicVars: Record<string,string>  | null,route: Route){
         try{
         if ( route == null) {
             // page not found error 404 error 
             response.statusCode =  404
-            console.log("repsonse on " + request.url + " failed")
-            response.write(this._default404)
-            response.end()
+            // console.log("response on " + request.url + " failed")
+            await response.write(this._default404)
+            await response.end()
 
         } else if(!route.methods.includes(request.method)){
             //  method not allowed 405 error 
             response.statusCode =  405
-            console.log("a " + request.method + " request on "+ request.url + " not allowed ")
-            response.write("method not allowed")
-            response.end()
+            // console.log("a " + request.method + " request on "+ request.url + " not allowed ")
+            await response.write("method not allowed")
+            await response.end()
              
         }else if (route.dynamic){
             try{
-                route.methodsFuncs[request.method](request,response,dynamicVars)
+                await route.methodsFuncs[request.method](request,response,dynamicVars)
                 if (!response.statusAlreadySet) {
                     response.statusCode = 200;
                 }
-                response.end()
-                console.log("reponse sent to " + request.socket.remoteAddress)
+                await response.end()
+                // console.log("response sent to " + request.socket.remoteAddress)
 
             }catch(err){
-                console.error(err)
+                // console.error(err)
                 
                 this._logger.errorsLog += err + '\n'
                 response.statusCode = 500;
-                response.end()
+                await response.end()
             }
 
         }else {
             try{
-                route.methodsFuncs[request.method](request,response,dynamicVars)
+                await route.methodsFuncs[request.method](request,response,dynamicVars)
                 if (!response.statusAlreadySet) {
                     response.statusCode = 200;
                 }
-                response.end()
-                console.log("reponse sent to " + request.socket.remoteAddress)
+                await response.end()
+                // console.log("response sent to " + request.socket.remoteAddress)
                 
 
             }catch(err){
-                console.error(err)
+                // console.error(err)
                 this._logger.errorsLog += err + '\n'
                 response.statusCode = 500;
-                response.end()
+                await response.end()
                 
             }
              
         }} 
         catch(err){
             this._logger.addError(String(err))
-            console.error(err)
+            // console.error(err)
         }
     }
 
     
-    handleRequest(request: neutrinoRequest, response: neutrinoResponse){
+    async handleRequest(request: neutrinoRequest, response: neutrinoResponse){
         try{
         /* 
             RECORDED THE START TIME OF THE SERVER RESPONDING TO THe REQUEST
@@ -1031,7 +1033,7 @@ class Neutrino{
         let possibleParams = url.split('?');
 
         if(possibleParams[0] != url){url = possibleParams[0];}
-        console.log("Got a " + request.method + " request on " + url);
+        // console.log("Got a " + request.method + " request on " + url);
 
         //FIND THE THE RIGHT ROUTE OBJECT FOR THE GIVEN URL
         let routeObj:any;
@@ -1049,7 +1051,7 @@ class Neutrino{
 
         this._middlewares.startWares(request,response)
         if (!response.writableEnded){
-            this.decideRequestFate(request, response, dynamicVars, routeObj)
+            await this.decideRequestFate(request, response, dynamicVars, routeObj)
         }
         this._afterware.startWares(request,response)
 
@@ -1057,7 +1059,7 @@ class Neutrino{
         if(this._log){this._logger.log(request,response,performance.now() - requestStart)}
 
         }catch(err){
-            console.error(err)
+            // console.error(err)
             this._logger.addError(String(err))
             if(!response.writableEnded){
                 response.setStatusCode(500)
@@ -1109,7 +1111,7 @@ class Neutrino{
     
             }catch (error){
                 this._logger.errorsLog += error + '\n'
-                console.error(error)
+                // console.error(error)
 
                 response.setStatusCode(500)
 
