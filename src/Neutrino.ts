@@ -119,7 +119,7 @@ async function readFile(path: string, logger: logger) {
 
     }
     }
-function corsMiddleware(req:neutrinoRequest, res:neutrinoResponse) {
+function corsMiddleware(req:neutrinoRequest, res:neutrinoResponse): void {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -149,19 +149,19 @@ class ware{
         this.Logger = logger
         
     }
-    setReqRes(request:neutrinoRequest, response: neutrinoResponse){
+    setReqRes(request:neutrinoRequest, response: neutrinoResponse):void{
         this.request = request
         this.response = response
     }
-    startWares(request:neutrinoRequest, response: neutrinoResponse){
+    startWares(request:neutrinoRequest, response: neutrinoResponse): void{
         this.setReqRes(request, response)
         this.next() 
     }
-    addWare(middleware: Function){
+    addWare(middleware: Function): void{
         this.wares.push(middleware)
     }
 
-    next(){
+    next(): void{
         try {
             this.currentWareIdx += 1 
             if (this.currentWareIdx >= this.wares.length) return this.reset()
@@ -174,10 +174,10 @@ class ware{
         }
 
     }
-    reset(){
+    reset(): void{
         this.currentWareIdx = -1
     }
-    removeWare(ware:Function) {
+    removeWare(ware:Function): void {
   
         const index = this.wares.indexOf(ware);
         if (index == -1) {
@@ -186,7 +186,7 @@ class ware{
         this.wares.splice(index, 1);
 
     }
-    insertWare(ware:Function,idx: number){
+    insertWare(ware:Function,idx: number): void{
         this.wares.splice(idx,0,ware)
     }
 }
@@ -232,7 +232,7 @@ class afterWare extends ware{
 */
 
 class rateLimiter{
-    rateLimitCache: any
+    rateLimitCache: Record<string,any>
     maxRequests:number
     timePeriod: number
 
@@ -242,7 +242,7 @@ class rateLimiter{
         this.timePeriod = 60
 
     }
-    rateLimit(req:neutrinoRequest, res:neutrinoResponse,next :Function) {
+    rateLimit(req:neutrinoRequest, res:neutrinoResponse,next :Function): void {
         // Get the current time
         const now = Date.now();
         // Check if the client's IP address is in the rate limit cache
@@ -274,7 +274,7 @@ class rateLimiter{
         next()
       }
     
-    setLimit(maxRequest:number,timePeriod:number){
+    setLimit(maxRequest:number,timePeriod:number): void{
         this.maxRequests = maxRequest
         this.timePeriod = timePeriod
     }
@@ -298,7 +298,7 @@ class logger{
 
     }
 
-    reqResData(req: neutrinoRequest,res: neutrinoResponse, timeTaken: Number) {
+    reqResData(req: neutrinoRequest,res: neutrinoResponse, timeTaken: Number): string {
 
         return (`=========================================================================\n
              ----   logged on   ${new Date().toISOString()}  \n
@@ -315,7 +315,7 @@ class logger{
                                                     ${err}  \n
                     -------------------------------------------------------------------------\n`)
         
-        await fs.appendFile(this.logFile, errMsg, (err:any) => {
+        await fs.appendFile(this.logFile, errMsg, (err:Error) => {
         if (err) console.error(err);
         
     })
@@ -326,7 +326,7 @@ class logger{
                                                                 ${logMessage}  \n
                                   -------------------------------------------------------------------------\n`)
 
-            await fs.appendFile(this.logFile, develoerMessage, (err:any) => {
+            await fs.appendFile(this.logFile, develoerMessage, (err:Error) => {
                 if (err) console.error(err);
                 
             })   
@@ -335,7 +335,7 @@ class logger{
 
     async mainlog(req: neutrinoRequest,res: neutrinoResponse, timeTaken: Number){
 
-        await fs.appendFile(this.logFile, this.reqResData(req, res, timeTaken), (err:any) => {
+        await fs.appendFile(this.logFile, this.reqResData(req, res, timeTaken), (err:Error) => {
             if (err) console.error(err);
             
         })
@@ -369,7 +369,7 @@ class Route{
     methodsFuncs: Record<string,Function>;
     // dynamicVar:string;
 
-    constructor(route: string, func: Function = (req:any,res:any)=>{res.write(page404)},methods: string[]=["GET"]){
+    constructor(route: string, func: Function = (req:neutrinoRequest,res:neutrinoResponse)=>{res.write(page404)},methods: string[]=["GET"]){
 
         this.children = [];
         this.route = route;
@@ -382,19 +382,19 @@ class Route{
 
     }
     // ADDS A CHILD TO THE CURRENT ROUTE INTANCE 
-    populateMethodsFuncs(func: Function){
+    populateMethodsFuncs(func: Function): Record<string,Function>{
         let methodsFuncs:Record<string,Function> = {}
         for(const method of this.methods){
             methodsFuncs[method] = func
         }
         return methodsFuncs
     }
-    addMethod(method:string,Function:Function){
+    addMethod(method:string,Function:Function): void{
         this.methods.push(method)
         this.methodsFuncs[method] = Function
         
     }
-    addChild(child:Route){
+    addChild(child:Route): void{
         if(child.route[1] === '<'){
             this.dynamicRoute = child;
 
@@ -404,15 +404,15 @@ class Route{
            } 
     }
     // SETS THE  PARENT TO THE CURRENT ROUTE INTANCE 
-    setParent(parent: Route){
+    setParent(parent: Route): void{
         this.parent = parent;
         this.setFullRoute(parent.fullRoute + this.route)
         parent.children.push(this)
     }
-    setFullRoute(route:string){
+    setFullRoute(route:string): void{
         this.fullRoute = route;
     }
-    setDynamicRoute(route:Route){
+    setDynamicRoute(route:Route): void{
         route.parent = this
         route.setFullRoute(this.fullRoute + route.route)
         this.dynamicRoute = route
@@ -493,10 +493,10 @@ class neutrinoResponse extends ServerResponseClass{
         return this
     }
     // to change the templating framework just replac ejs with framework you want
-    async render(fileName:string, templateVars:any={}){
+    async render(fileName:string, templateVars:Record<string,string>={}){
         let html:string = ''
 
-        await ejs.renderFile(fileName,templateVars,(err:any, string:string)=>{
+        await ejs.renderFile(fileName,templateVars,(err:Error, string:string)=>{
             if (err){ throw new Error("ejs.render file producing and error") }
             html = string
         });
@@ -508,13 +508,13 @@ class neutrinoResponse extends ServerResponseClass{
 
     }
 
-    setStatusCode(statusCode:number){
+    setStatusCode(statusCode:number): neutrinoResponse{
         this.statusCode = statusCode;
         this.statusAlreadySet = true
         return this
 
     }
-    redirect(url:String) {
+    redirect(url:String): neutrinoResponse {
         this.setHeader('Location', url);
         this.statusCode = 302;
         this.statusAlreadySet= true
@@ -532,10 +532,10 @@ class neutrinoResponse extends ServerResponseClass{
 class neutrinoRequest extends IncomingMessageClass{
 
     _req:IncomingMessage;
-    params:any;
+    params:Record<string,string>;
     ip:string;
     path:string;
-    cookies:any;
+    cookies:Record<string,string>;
 
     constructor(socket:any){
         super(socket)
@@ -565,7 +565,7 @@ class neutrinoRequest extends IncomingMessageClass{
         RETURN A DICTIONART WITH THE KEYS
         AS COOKIES NAMES AND VALUES AS COOKIES VALUES
     */
-    parseCookies () {
+    parseCookies ():Record<string,string> {
   // Check if the cookie header is set
         if (!this.headers.cookie) {
             return {};
@@ -575,7 +575,7 @@ class neutrinoRequest extends IncomingMessageClass{
         const cookies = this.headers.cookie.split(';');
 
         // Create an object to hold the parsed cookies
-        const parsedCookies:any = {};
+        const parsedCookies:Record<string,string> = {};
 
         // Iterate over the array of cookies
         for (const cookie of cookies) {
@@ -592,7 +592,7 @@ class neutrinoRequest extends IncomingMessageClass{
     }
     
     //GET INFO FROM HEADERS
-    get(input:string){
+    get(input:string): string{
         return this.headers[input]
     }
 
@@ -618,7 +618,7 @@ class Router{
     _mainRoute: Route;
     _app: Neutrino;
 
-    constructor(app: Neutrino,mainRoute: string, routeFunc: Function = (req:any,res:any)=>{res.write(page404)},methods: string[]=["GET"]){
+    constructor(app: Neutrino,mainRoute: string, routeFunc: Function = (req:neutrinoRequest,res:neutrinoResponse)=>{res.write(page404)},methods: string[]=["GET"]){
 
         this._app = app;
         let lastFound = this._app.findLastCommon(mainRoute,this._app._route)
@@ -634,7 +634,7 @@ class Router{
         INPUT URL(ROUTE)   
 
     */
-    findLastCommon(route: string, mainRoute: Route){
+    findLastCommon(route: string, mainRoute: Route): Route {
         let urls  = route.split("/");
         let curr = mainRoute;
 
@@ -679,7 +679,7 @@ class Router{
     }
     
     // ADD ROUTES TO THE MAIN ROUTER
-    addRoute(url: string,routeFunc: Function,methods: string[]=["GET"]){
+    addRoute(url: string,routeFunc: Function,methods: string[]=["GET"]): void{
         url = this._mainRoute.fullRoute + url
         const urls = url.split('/');
 
@@ -769,23 +769,23 @@ class Neutrino{
         this._rateLimiter = new rateLimiter()
         this._default404 = this.get404()
     }
-    get(route: string, routefunc: Function){
+    get(route: string, routefunc: Function): void{
         this.addroute(route,routefunc,['GET'])
     }
-    post(route: string, routefunc: Function){
+    post(route: string, routefunc: Function): void{
         this.addroute(route,routefunc,['post'])
     }
-    put(route: string, routefunc: Function){
+    put(route: string, routefunc: Function): void{
         this.addroute(route,routefunc,['PUT'])
     }
-    delete(route: string, routefunc: Function){
+    delete(route: string, routefunc: Function): void{
         this.addroute(route,routefunc,['delete'])
     }
     // THIS METHODS CHANGES THE DEFAULT 404
-    set404(html:string){
+    set404(html:string): void{
         this._default404 = html;
     }
-    get404(){
+    get404(): string{
         return `    <div style=" display: flex;
                         justify-content: center;
                         align-items: center;
@@ -928,7 +928,7 @@ class Neutrino{
         return curr
     }
     // ADDS ROUTES OBJECT TO THE TREE
-    addroute(url: string, routeFunc:Function,methods: string[]= ["GET"]):void{
+    addroute(url: string, routeFunc:Function,methods: string[]= ["GET"]): void{
 
         const urls = url.split('/');
         let mainRoute = this._route;
@@ -1103,7 +1103,7 @@ class Neutrino{
 
 
     // ADDS PATH TO STATIC PATH WHICH THE FRAMEWORK SREARCH FOR STATIC FILE FROM.
-    addStaticPath(path:string){
+    addStaticPath(path:string): void{
         _staticPaths.push(path)
     }
 
