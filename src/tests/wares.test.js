@@ -1,5 +1,5 @@
-const neutrino = require('../Neutrino');
-const Ware = neutrino.ware
+const Ware = require('../Neutrino').Ware;
+
 
 // const logger = logger()
 

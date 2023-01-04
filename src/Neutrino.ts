@@ -97,25 +97,26 @@ const fileTypesToContentType:Record<string,string> = {
         
 //     }
 
-function fileExists(filePath:string, logger: logger) {
+async function fileExists(filePath:string, logger: logger) {
     try {
-        return fs.statSync(filePath).isFile();
+        return await fs.statSync(filePath).isFile();
     } catch (err) {
-        logger.errorsLog += err + '\n'
+        logger.logError(String(err) )
         // console.error(err)
         return false;
     }
     }
 
-function readFile(path: string, logger: logger) {
+async function readFile(path: string, logger: logger) {
     try {
         // Read the file as a string
-        const data = fs.readFileSync(path);
+        const data = await fs.readFileSync(path);
         return data;
     }
     catch (err) {
         // console.error(err);
-        logger.errorsLog += err + '\n'
+        logger.logError(String(err) )
+
     }
     }
 function corsMiddleware(req:neutrinoRequest, res:neutrinoResponse) {
@@ -168,7 +169,7 @@ class ware{
         }catch(err){
             // console.error(err)
 
-            this.Logger.addError(String(err))
+            this.Logger.logError(String(err))
             this.next()
         }
 
@@ -290,44 +291,51 @@ class rateLimiter{
 
 */
 class logger{
-    logMessage:string
     logFile: string;
-    errorsLog: string;
 
     constructor(){
         this.logFile = 'logs.txt'
-        this.errorsLog = ''
-        this.logMessage = ""
+
     }
 
     reqResData(req: neutrinoRequest,res: neutrinoResponse, timeTaken: Number) {
 
-        return ("=========================================================================\n"
-            + "---- " +"logged on " + new Date().toISOString() + '\n'
-            + "---- " +"from the following ip => " + req.ip +'\n'
-            + "---- " +"recived a " + req.method + " request to url => " + req.url +'\n'
-            + "---- " +"request recived with follwoing cookies " + JSON.stringify(req.cookies) + '\n'
-            + "---- " +"response status " + res.statusCode.toString() +'\n'
-            + "---- " +"response took " + parseFloat(timeTaken.toFixed(2)) + " milliseconds to process \n" 
-            + "-------------------------------------------------------------------------\n"
-            + '----------------------------- Errors Log --------------------------------\n'
-            + this.errorsLog + '\n'
-            + "-------------------------------------------------------------------------\n"
-            + "---------------------------- Developer Logs---------------------------------\n"
-            + this.logMessage
-            + "-------------------------------------------------------------------------\n")
+        return (`=========================================================================\n
+             ----   logged on   ${new Date().toISOString()}  \n
+             ----   from the following ip =>   ${req.ip} \n
+             ----   recived a   req.method   request to url =>   ${req.url} \n
+             ----   request recived with follwoing cookies   ${JSON.stringify(req.cookies)}  \n
+             ----   response status   ${res.statusCode.toString()} \n
+             ----   response took   ${parseFloat(timeTaken.toFixed(2))}   milliseconds to process \n 
+             -------------------------------------------------------------------------\n`)
 
     }
-    addError(err:string){
-        this.errorsLog += err
+    async logError(err:string){
+        let errMsg =( `----------------------------- Errors Log --------------------------------\n
+                                                    ${err}  \n
+                    -------------------------------------------------------------------------\n`)
+        
+        await fs.appendFile(this.logFile, errMsg, (err:any) => {
+        if (err) console.error(err);
+        
+    })
+
     }
-    addToLog(logMessage: string){
-        this.logMessage += logMessage + '\n'
+    async log(logMessage: string){
+        let develoerMessage = (  `---------------------------- Developer Logs---------------------------------\n
+                                                                ${logMessage}  \n
+                                  -------------------------------------------------------------------------\n`)
+
+            await fs.appendFile(this.logFile, develoerMessage, (err:any) => {
+                if (err) console.error(err);
+                
+            })   
+                            
     }
 
-    log(req: neutrinoRequest,res: neutrinoResponse, timeTaken: Number){
+    async mainlog(req: neutrinoRequest,res: neutrinoResponse, timeTaken: Number){
 
-        fs.appendFile(this.logFile, this.reqResData(req, res, timeTaken), (err:any) => {
+        await fs.appendFile(this.logFile, this.reqResData(req, res, timeTaken), (err:any) => {
             if (err) console.error(err);
             
         })
@@ -729,20 +737,25 @@ class Neutrino{
     _route:Route;
     _routesobjs: Record<string,Route>;
 
+    _404Route: Route
     _default404:string;
-    _mainDynammic:any;
+    _mainDynammic:Route | null;
     _middlewares: middleWare
     _afterware: afterWare
     _logger: logger
     _log: boolean
     _rateLimiter: rateLimiter
     _allowedDoamins?: string[]
-    constructor(port: number){
+
+
+    constructor(port: number = 5500){
         
         this._server = http.createServer({ ServerResponse: neutrinoResponse ,IncomingMessage : neutrinoRequest});
         this._port   = port;
 
-        this._route = new Route('',(req:any,res:any)=>{res.write("<h1>Neutrino</h1>")});
+        this._404Route = new Route('',(req:neutrinoResponse,res:neutrinoRequest)=>{res.sendHtml(this.get404())})
+        this._route = new Route('',(req:neutrinoResponse,res:neutrinoRequest)=>{res.sendHtml("<h1>Neutrino</h1>")});
+
         this._mainDynammic = null
         this._routesobjs = {'/': this._route}
         this.staticFilesRoute()
@@ -754,25 +767,7 @@ class Neutrino{
         this._afterware = new afterWare(this._logger)
 
         this._rateLimiter = new rateLimiter()
-
-        this._default404 = `    <div style=" display: flex;
-                                    justify-content: center;
-                                    align-items: center;
-                                   width: 100%;
-                                    height: 100%;"
-                                    >
-                                <div style=" font-size:100px;
-                                        display:block;"
-                                        >
-                                        404
-                                        </div>
-                                <br>
-                                <div style="display: block;
-                                    font-size:100px;">  
-                                Page Not Found
-                                </div>
-                            </div>` 
-
+        this._default404 = this.get404()
     }
     get(route: string, routefunc: Function){
         this.addroute(route,routefunc,['GET'])
@@ -790,6 +785,26 @@ class Neutrino{
     set404(html:string){
         this._default404 = html;
     }
+    get404(){
+        return `    <div style=" display: flex;
+                        justify-content: center;
+                        align-items: center;
+                    width: 100%;
+                        height: 100%;"
+                        >
+                    <div style=" font-size:100px;
+                            display:block;"
+                            >
+                            404
+                            </div>
+                    <br>
+                    <div style="display: block;
+                        font-size:100px;">  
+                    Page Not Found
+                    </div>
+                    </div>` 
+
+    }
 
     // adding middlware 
     use(middleware:Function,): void{
@@ -798,36 +813,36 @@ class Neutrino{
     addMiddlWare(middleware:Function,): void{
         this._middlewares.addWare(middleware)
     }
-    addAfterWare(afterware: Function){
+    addAfterWare(afterware: Function): void{
         this._afterware.addWare(afterware)
     }
-    disableLogging(){
+    disableLogging(): void{
         this._log = false
     }
-    enableLogging(){
+    enableLogging(): void{
         this._log = true
     }
-    skipMiddlewares(){
+    skipMiddlewares(): void{
         this._middlewares.currentWareIdx = this._middlewares.wares.length
     }
-    skipAfterwares(){
+    skipAfterwares(): void{
         this._afterware.currentWareIdx = this._middlewares.wares.length
     }
-    insertMiddleware(middlware:Function, idx:number){
+    insertMiddleware(middlware:Function, idx:number): void{
         this._middlewares.insertWare(middlware,idx)
     }
-    insertAfterware(afterware:Function, idx:number){
+    insertAfterware(afterware:Function, idx:number): void{
         this._middlewares.insertWare(afterware,idx)
     }
-    addRateLimiting(maxRequest: number, timePeriod: number){
+    addRateLimiting(maxRequest: number, timePeriod: number): void{
         this._rateLimiter.setLimit(maxRequest, timePeriod)
         this._middlewares.insertWare(this._rateLimiter.rateLimit.bind(this._rateLimiter),0)
 
     }
-    resetLimit(maxRequest: number, timePeriod: number){
+    resetLimit(maxRequest: number, timePeriod: number): void{
         this._rateLimiter.setLimit(maxRequest, timePeriod)
     }
-    addStrictSecruityMeasures(){
+    addStrictSecruityMeasures(): void{
         this.use(helmet());
         this.use(helmet.dnsPrefetchControl());
         this.use(helmet.expectCt());
@@ -840,7 +855,7 @@ class Neutrino{
         this.use(helmet.xssFilter());
         this.use(corsMiddleware)
     }
-    setAllowedDomains(Domains: string[]){
+    setAllowedDomains(Domains: string[]): void{
         this._allowedDoamins = Domains
         this.use(helmet.frameguard({
             action: 'sameorigin',
@@ -917,7 +932,10 @@ class Neutrino{
 
         const urls = url.split('/');
         let mainRoute = this._route;
-        let newRoute:Route
+        let newRoute:Route = this._404Route
+
+        newRoute.fullRoute  = url
+        newRoute.route = url
 
         if(url in this._routesobjs){
             newRoute = this._routesobjs[url]
@@ -944,7 +962,7 @@ class Neutrino{
             newRoute =  finalRoute
 
 
-        }else{
+        }else if (this._mainDynammic != null){
             
             let lastCommonRoute = this.findLastCommon(url,this._mainDynammic);
             let finalRoute = this.continueConstruction(lastCommonRoute,url);
@@ -990,7 +1008,7 @@ class Neutrino{
             }catch(err){
                 // console.error(err)
                 
-                this._logger.errorsLog += err + '\n'
+                this._logger.logError(String(err) )
                 response.statusCode = 500;
                 await response.end()
             }
@@ -1007,7 +1025,8 @@ class Neutrino{
 
             }catch(err){
                 // console.error(err)
-                this._logger.errorsLog += err + '\n'
+                this._logger.logError(String(err) )
+
                 response.statusCode = 500;
                 await response.end()
                 
@@ -1015,7 +1034,8 @@ class Neutrino{
              
         }} 
         catch(err){
-            this._logger.addError(String(err))
+            this._logger.logError(String(err) )
+
             // console.error(err)
         }
     }
@@ -1036,8 +1056,8 @@ class Neutrino{
         // console.log("Got a " + request.method + " request on " + url);
 
         //FIND THE THE RIGHT ROUTE OBJECT FOR THE GIVEN URL
-        let routeObj:any;
-        let dynamicVars:any;
+        let routeObj:Route;
+        let dynamicVars:Record <string,string>;
 
         if(url in this._routesobjs){
             routeObj = this._routesobjs[url]
@@ -1045,7 +1065,7 @@ class Neutrino{
         }else{
             [routeObj,dynamicVars]  = this._route.compareRoutes(url)
         }
-        if(routeObj == null && typeof this._mainDynammic != 'undefined' ){
+        if(routeObj == null &&  this._mainDynammic != null ){
             [routeObj,dynamicVars] = this._mainDynammic.compareRoutes(url)
         }
 
@@ -1056,14 +1076,15 @@ class Neutrino{
         this._afterware.startWares(request,response)
 
         // END TIME CAPTURING 
-        if(this._log){this._logger.log(request,response,performance.now() - requestStart)}
+        if(this._log){await this._logger.mainlog(request,response,performance.now() - requestStart)}
 
         }catch(err){
             // console.error(err)
-            this._logger.addError(String(err))
+            this._logger.logError(String(err) )
+
             if(!response.writableEnded){
                 response.setStatusCode(500)
-                request.end()
+                await request.end()
             }
         }
         
@@ -1071,13 +1092,13 @@ class Neutrino{
     
 
     // STARTS THE SERVER AND LISTENS FOR REQUEST SENT TO THE SERVER.
-    start(port: number = this._port) {
+    async start(port: number = this._port) {
         this._port = port
         this._server.listen(this._port)
         console.log("Neutrino Server live at http://127.0.0.1:" + this._port)
 
         // THE ON METHODS GIVES US THE ABILITY TO EXECUTE A FUNCTION WHEN A REQUEST IS RECIEVED
-        this._server.on('request',this.handleRequest.bind(this));
+        this._server.on('request',await this.handleRequest.bind(this));
     }
 
 
@@ -1088,12 +1109,12 @@ class Neutrino{
 
     // CREATES STATIC FILE ROUTE THAT SERVE LOCAL STATICS FILE TO THE BROWSER.
     staticFilesRoute(){
-        const staticRouteFunc =  (request: neutrinoRequest, response: neutrinoResponse, dynamicvars: any) =>{
+        const staticRouteFunc =  async (request: neutrinoRequest, response: neutrinoResponse, dynamicvars: Record<string,string>) =>{
             let neededFile:string = ''
             
             for (const dir of _staticPaths) {
                 const filePath = path.join(dir, dynamicvars['fileName']);
-                if ( fileExists(filePath,this._logger)) {
+                if ( await fileExists(filePath,this._logger)) {
                     neededFile = filePath;
                 }
             }
@@ -1102,15 +1123,16 @@ class Neutrino{
 
             if (neededFile == ""){
                 response.setStatusCode(404)
-                response.end()
+                await response.end()
             }
             try{
 
                 const data =  readFile(neededFile,this._logger)
-                response.write(data)
+                await response.write(data)
     
             }catch (error){
-                this._logger.errorsLog += error + '\n'
+                this._logger.logError(String(error) )
+
                 // console.error(error)
 
                 response.setStatusCode(500)
@@ -1140,5 +1162,5 @@ module.exports.Router = Router
 module.exports.Route = Route
 module.exports.corsMiddleware = corsMiddleware
 module.exports.logger = logger
-module.exports.Wares = ware
+module.exports.Ware = ware
 module.exports.rateLimiter = rateLimiter
