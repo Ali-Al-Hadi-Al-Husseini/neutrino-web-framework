@@ -42,4 +42,31 @@ describe('Route', () => {
     }
   });
 
+  test('populateMethodsFuncs returns correct object', () => {
+    for(let idx = 0 ; idx < urls.length ; idx++){
+        let route = routes[idx]
+        let currentMethods = methods[idx]
+
+        let methodsFuncs = {}
+        for(const method of currentMethods){ methodsFuncs[method] = expect.any(Function)}
+
+         expect(route.populateMethodsFuncs(() => {})).toEqual(methodsFuncs);
+    }
+});
+
+test('addMethod adds method to methods and methodsFuncs', () => {
+for(let idx = 0 ; idx < urls.length ; idx++){
+    let route = routes[idx]
+    let currentMethods = methods[idx]
+
+    let testFunc = ()=> {}
+    if(!"POST" in currentMethods) currentMethods.push("POST")
+
+    route.addMethod('POST', testFunc);
+    expect(route.methods).toEqual(currentMethods);
+    expect(route.methodsFuncs['POST']).toEqual(testFunc);
+}
+});
+
+
 })
