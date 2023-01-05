@@ -126,7 +126,13 @@ function corsMiddleware(req:neutrinoRequest, res:neutrinoResponse): void {
     res.setHeader('Access-Control-Max-Age', '3600');
 
     }
-
+function removeAddons(str:string):string{
+    let dynamicPart = str
+    dynamicPart.replace('<','')
+    dynamicPart.replace('>','')
+    dynamicPart.replace('/','')
+    return dynamicPart
+}
     
 let _staticPaths:string[] = []
 /*
@@ -364,7 +370,7 @@ class Route{
     methods: string[];
     route:string;
     fullRoute:string;
-    dynamic:boolean;
+    isDynamic:boolean;
     dynamicRoute?: any;
     methodsFuncs: Record<string,Function>;
     // dynamicVar:string;
@@ -375,7 +381,7 @@ class Route{
         this.route = route;
         this.methods = methods;
         this.fullRoute = route;
-        this.dynamic = route[1] === '<' ? true : false || route[0] === '<' ? true : false 
+        this.isDynamic = route[1] === '<' ? true : false || route[0] === '<' ? true : false 
         this.parent =  null
         this.dynamicRoute= null
         this.methodsFuncs = this.populateMethodsFuncs(func)
@@ -442,11 +448,12 @@ class Route{
             }
             if ((url != curr.route && curr.route + "/" != url   ) && curr.dynamicRoute != null) {
                 curr = curr.dynamicRoute;
-                dynamicParts[curr.route.slice(2, curr.route.length - 1)] = url.slice(1);
+                dynamicParts[removeAddons(curr.route)] = removeAddons(url);
                 lastIsDynamic = true;
 
-            }else if (curr.dynamic){
-                dynamicParts[curr.route.slice(1, curr.route.length - 1)] = url.slice(1);
+            }else if (curr.isDynamic){
+
+                dynamicParts[removeAddons(curr.route)] = removeAddons(url);
                 lastIsDynamic = true;
 
             }
@@ -996,7 +1003,7 @@ class Neutrino{
             await response.write("method not allowed")
             await response.end()
              
-        }else if (route.dynamic){
+        }else if (route.isDynamic){
             try{
                 await route.methodsFuncs[request.method](request,response,dynamicVars)
                 if (!response.statusAlreadySet) {
