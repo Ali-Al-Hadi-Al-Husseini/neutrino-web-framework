@@ -118,10 +118,12 @@ test('addChild adds child to children array', () => {
     });
     
     test('compareRoutes returns correct route and dynamic parts', () => {
+
     const child1 = new Route('/child1', () => {});
     const child2 = new Route('/child2', () => {});
     const dynamicRoute = new Route('/<dynamic>', () => {});
     const testReq = {}
+    
     child1.addChild(child2);
     
     for(const route of routes){
