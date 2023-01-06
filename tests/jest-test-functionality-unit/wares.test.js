@@ -1,4 +1,4 @@
-const Ware = require('../Neutrino').Ware;
+const Ware = require('../../build/Neutrino').Ware;
 
 
 // const logger = logger()

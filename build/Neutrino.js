@@ -113,9 +113,10 @@ function corsMiddleware(req, res) {
 }
 function removeAddons(str) {
     let dynamicPart = str;
-    dynamicPart.replace('<', '');
-    dynamicPart.replace('>', '');
-    dynamicPart.replace('/', '');
+    let shouldRemove = ['>', "<", "/"];
+    for (const symbol of shouldRemove) {
+        dynamicPart = dynamicPart.replace(symbol, '');
+    }
     return dynamicPart;
 }
 let _staticPaths = [];
@@ -219,7 +220,7 @@ class rateLimiter {
         this.maxRequests = 100;
         this.timePeriod = 60;
     }
-    rateLimit(req, res, next) {
+    async rateLimit(req, res, next) {
         // Get the current time
         const now = Date.now();
         // Check if the client's IP address is in the rate limit cache
@@ -244,8 +245,8 @@ class rateLimiter {
         // If the request count is greater than the maximum allowed, return a rate limit exceeded error
         if (this.rateLimitCache[req.ip].requests > this.maxRequests) {
             res.setStatusCode(429);
-            res.write('Too many requests. Please try again later.');
-            res.end();
+            await res.write('Too many requests. Please try again later.');
+            await res.end();
         }
         // If the request count is within the limit, continue to the next middleware or handler
         next();
@@ -323,7 +324,7 @@ class logger {
 class Route {
     parent;
     children;
-    methods;
+    // methods: string[];
     route;
     fullRoute;
     isDynamic;
@@ -333,23 +334,22 @@ class Route {
     constructor(route, func = (req, res) => { res.write(page404); }, methods = ["GET"]) {
         this.children = [];
         this.route = route;
-        this.methods = methods;
+        // this.methods = methods;
         this.fullRoute = route;
         this.isDynamic = route[1] === '<' ? true : false || route[0] === '<' ? true : false;
         this.parent = null;
         this.dynamicRoute = null;
-        this.methodsFuncs = this.populateMethodsFuncs(func);
+        this.methodsFuncs = this.populateMethodsFuncs(func, methods);
     }
     // ADDS A CHILD TO THE CURRENT ROUTE INTANCE 
-    populateMethodsFuncs(func) {
+    populateMethodsFuncs(func, methods) {
         let methodsFuncs = {};
-        for (const method of this.methods) {
+        for (const method of methods) {
             methodsFuncs[method] = func;
         }
         return methodsFuncs;
     }
     addMethod(method, Function) {
-        this.methods.push(method);
         this.methodsFuncs[method] = Function;
     }
     addChild(child) {
@@ -381,6 +381,7 @@ class Route {
         THIS ISTANCE ROUTE
      */
     compareRoutes(route) {
+        // there are some uncessary ops that could be removed
         let urls = route.split('/');
         let dynamicParts = {};
         urls = urls.filter(element => element != '');
@@ -441,12 +442,15 @@ class neutrinoResponse extends ServerResponseClass {
     // to change the templating framework just replac ejs with framework you want
     async render(fileName, templateVars = {}) {
         let html = '';
+        let error;
         await ejs.renderFile(fileName, templateVars, (err, string) => {
             if (err) {
+                error = err;
                 throw new Error("ejs.render file producing and error");
             }
             html = string;
         });
+        if (error) { }
         this.setHeader('Content-Type', 'text/html');
         await this.sendHtml(html);
         return this;
@@ -466,6 +470,9 @@ class neutrinoResponse extends ServerResponseClass {
         this.setHeader('Content-Type', 'text/html');
         await this.write(html);
     }
+    send404() {
+        this.setStatusCode(404);
+    }
 }
 // REQUEST CLASS ADDS FUNCTIONALITY AND PROPERTIES  TO THE REQUEST OBJECT
 class neutrinoRequest extends IncomingMessageClass {
@@ -483,11 +490,7 @@ class neutrinoRequest extends IncomingMessageClass {
         this.path = url[0];
         //THIS LOOP EXTRACTS THE PARAMETER FROM THE URL
         if (url[0] != this.url) {
-            let params = url[1].split('&');
-            for (let param of params) {
-                let [varName, value] = param.split('=');
-                this.params[varName] = value;
-            }
+            this.params = this.parseParams(url[1]);
         }
     }
     /*
@@ -515,6 +518,15 @@ class neutrinoRequest extends IncomingMessageClass {
         }
         return parsedCookies;
     }
+    parseParams(url) {
+        let unParesedParams = url.split('&');
+        let parresdParams = {};
+        for (let param of unParesedParams) {
+            let [varName, value] = param.split('=');
+            parresdParams[varName] = value;
+        }
+        return parresdParams;
+    }
     //GET INFO FROM HEADERS
     get(input) {
         return this.headers[input];
@@ -541,8 +553,7 @@ class Router {
         this._app = app;
         let lastFound = this._app.findLastCommon(mainRoute, this._app._route);
         this._mainRoute = this._app.continueConstruction(lastFound, mainRoute);
-        this._mainRoute.methods = methods;
-        this._mainRoute.methodsFuncs = this._mainRoute.populateMethodsFuncs(routeFunc);
+        this._mainRoute.methodsFuncs = this._mainRoute.populateMethodsFuncs(routeFunc, methods);
     }
     /*
         
@@ -592,8 +603,7 @@ class Router {
         url = this._mainRoute.fullRoute + url;
         const urls = url.split('/');
         if (url == '' || url == '/') {
-            this._mainRoute.methods = methods;
-            this._mainRoute.methodsFuncs = this._mainRoute.populateMethodsFuncs(routeFunc);
+            this._mainRoute.methodsFuncs = this._mainRoute.populateMethodsFuncs(routeFunc, methods);
         }
         else if ((urls.length <= 2 && urls[1][0] == '<')) {
             this._mainRoute.dynamicRoute = new Route("/" + urls[1], routeFunc, methods);
@@ -604,14 +614,12 @@ class Router {
             if (mainRoute != null) {
                 let lastCommonRoute = this.findLastCommon(url, mainRoute);
                 let finalRoute = this.continueConstruction(lastCommonRoute, url);
-                finalRoute.methods = methods;
-                finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc);
+                finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc, methods);
             }
             else {
                 let lastCommonRoute = this.findLastCommon(url, this._mainRoute.dynamicRoute);
                 let finalRoute = this.continueConstruction(lastCommonRoute, url);
-                finalRoute.methods = methods;
-                finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc);
+                finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc, methods);
                 this._mainRoute.dynamicRoute.addChild(finalRoute);
             }
         }
@@ -655,13 +663,13 @@ class Neutrino {
         this.addroute(route, routefunc, ['GET']);
     }
     post(route, routefunc) {
-        this.addroute(route, routefunc, ['post']);
+        this.addroute(route, routefunc, ['POST']);
     }
     put(route, routefunc) {
         this.addroute(route, routefunc, ['PUT']);
     }
     delete(route, routefunc) {
-        this.addroute(route, routefunc, ['delete']);
+        this.addroute(route, routefunc, ['DELETE']);
     }
     // THIS METHODS CHANGES THE DEFAULT 404
     set404(html) {
@@ -817,15 +825,13 @@ class Neutrino {
         else if (mainRoute != null) {
             let lastCommonRoute = this.findLastCommon(url, mainRoute);
             let finalRoute = this.continueConstruction(lastCommonRoute, url);
-            finalRoute.methods = methods;
-            finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc);
+            finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc, methods);
             newRoute = finalRoute;
         }
         else if (this._mainDynammic != null) {
             let lastCommonRoute = this.findLastCommon(url, this._mainDynammic);
             let finalRoute = this.continueConstruction(lastCommonRoute, url);
-            finalRoute.methods = methods;
-            finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc);
+            finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc, methods);
             this._mainDynammic.addChild(finalRoute);
             newRoute = finalRoute;
         }
@@ -842,7 +848,7 @@ class Neutrino {
                 await response.write(this._default404);
                 await response.end();
             }
-            else if (!route.methods.includes(request.method)) {
+            else if (!route.methodsFuncs.hasOwnProperty(request.method)) {
                 //  method not allowed 405 error 
                 response.statusCode = 405;
                 // console.log("a " + request.method + " request on "+ request.url + " not allowed ")
@@ -988,3 +994,5 @@ module.exports.corsMiddleware = corsMiddleware;
 module.exports.logger = logger;
 module.exports.Ware = ware;
 module.exports.rateLimiter = rateLimiter;
+module.exports.neutrinoRequest = neutrinoRequest;
+module.exports.neutrinoResponse = neutrinoResponse;

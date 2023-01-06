@@ -128,9 +128,11 @@ function corsMiddleware(req:neutrinoRequest, res:neutrinoResponse): void {
     }
 function removeAddons(str:string):string{
     let dynamicPart = str
-    dynamicPart.replace('<','')
-    dynamicPart.replace('>','')
-    dynamicPart.replace('/','')
+    let shouldRemove = ['>',"<","/"]
+
+    for(const symbol of shouldRemove){
+        dynamicPart = dynamicPart.replace(symbol, '');
+    }
     return dynamicPart
 }
     
@@ -367,7 +369,7 @@ class logger{
 class Route{
     parent: any;
     children: Route[];
-    methods: string[];
+    // methods: string[];
     route:string;
     fullRoute:string;
     isDynamic:boolean;
@@ -379,24 +381,23 @@ class Route{
 
         this.children = [];
         this.route = route;
-        this.methods = methods;
+        // this.methods = methods;
         this.fullRoute = route;
         this.isDynamic = route[1] === '<' ? true : false || route[0] === '<' ? true : false 
         this.parent =  null
         this.dynamicRoute= null
-        this.methodsFuncs = this.populateMethodsFuncs(func)
+        this.methodsFuncs = this.populateMethodsFuncs(func,methods)
 
     }
     // ADDS A CHILD TO THE CURRENT ROUTE INTANCE 
-    populateMethodsFuncs(func: Function): Record<string,Function>{
+    populateMethodsFuncs(func: Function,methods: string[]): Record<string,Function>{
         let methodsFuncs:Record<string,Function> = {}
-        for(const method of this.methods){
+        for(const method of methods){
             methodsFuncs[method] = func
         }
         return methodsFuncs
     }
     addMethod(method:string,Function:Function): void{
-        this.methods.push(method)
         this.methodsFuncs[method] = Function
         
     }
@@ -430,6 +431,7 @@ class Route{
         THIS ISTANCE ROUTE
      */
     compareRoutes(route:string):any  {
+        // there are some uncessary ops that could be removed
         let urls = route.split('/');
         let dynamicParts:Record<string,string> = {};
         
@@ -502,11 +504,14 @@ class neutrinoResponse extends ServerResponseClass{
     // to change the templating framework just replac ejs with framework you want
     async render(fileName:string, templateVars:Record<string,string>={}){
         let html:string = ''
-
+        let error 
         await ejs.renderFile(fileName,templateVars,(err:Error, string:string)=>{
-            if (err){ throw new Error("ejs.render file producing and error") }
+            if (err){ 
+                error = err
+                throw new Error("ejs.render file producing and error")  }
             html = string
         });
+        if (error){}
         this.setHeader(
             'Content-Type', 'text/html'
         );
@@ -534,6 +539,10 @@ class neutrinoResponse extends ServerResponseClass{
         );
         await this.write(html);        
     }
+    
+    send404(){
+        this.setStatusCode(404)
+    }
 }
 // REQUEST CLASS ADDS FUNCTIONALITY AND PROPERTIES  TO THE REQUEST OBJECT
 class neutrinoRequest extends IncomingMessageClass{
@@ -558,13 +567,8 @@ class neutrinoRequest extends IncomingMessageClass{
 
         //THIS LOOP EXTRACTS THE PARAMETER FROM THE URL
         if (url[0] != this.url){
-            let params = url[1].split('&');
-            for(let param of params){
-
-                let [varName, value] = param.split('=');
-                this.params[varName] = value;
-
-        }}
+            this.params = this.parseParams(url[1])
+        }
 
     }
     /* 
@@ -596,6 +600,16 @@ class neutrinoRequest extends IncomingMessageClass{
         }
 
         return parsedCookies;
+    }
+    parseParams(url:string): Record<string,string>{
+        let unParesedParams:string[] = url.split('&');
+        let parresdParams:Record<string,string> = {}
+
+        for (let param of unParesedParams) {
+            let [varName, value] = param.split('=');
+            parresdParams[varName] = value;
+        }
+        return parresdParams
     }
     
     //GET INFO FROM HEADERS
@@ -631,8 +645,8 @@ class Router{
         let lastFound = this._app.findLastCommon(mainRoute,this._app._route)
         this._mainRoute = this._app.continueConstruction(lastFound,mainRoute)
         
-        this._mainRoute.methods = methods
-        this._mainRoute.methodsFuncs = this._mainRoute.populateMethodsFuncs(routeFunc)
+
+        this._mainRoute.methodsFuncs = this._mainRoute.populateMethodsFuncs(routeFunc,methods)
         
     }
     /*
@@ -692,8 +706,7 @@ class Router{
 
         if (url == '' || url== '/'){
 
-            this._mainRoute.methods = methods
-            this._mainRoute.methodsFuncs = this._mainRoute.populateMethodsFuncs(routeFunc)
+            this._mainRoute.methodsFuncs = this._mainRoute.populateMethodsFuncs(routeFunc,methods)
 
         }else if((urls.length <= 2 && urls[1][0] == '<') ){
 
@@ -708,9 +721,8 @@ class Router{
                 let lastCommonRoute = this.findLastCommon(url,mainRoute);
                 let finalRoute = this.continueConstruction(lastCommonRoute,url);
 
-                finalRoute.methods = methods
 
-                finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc)
+                finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc,methods)
 
             
             }else{
@@ -718,8 +730,7 @@ class Router{
                 let lastCommonRoute = this.findLastCommon(url,this._mainRoute.dynamicRoute);
                 let finalRoute = this.continueConstruction(lastCommonRoute,url);
 
-                finalRoute.methods = methods
-                finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc)
+                finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc,methods)
 
                 this._mainRoute.dynamicRoute.addChild(finalRoute)
 
@@ -780,13 +791,13 @@ class Neutrino{
         this.addroute(route,routefunc,['GET'])
     }
     post(route: string, routefunc: Function): void{
-        this.addroute(route,routefunc,['post'])
+        this.addroute(route,routefunc,['POST'])
     }
     put(route: string, routefunc: Function): void{
         this.addroute(route,routefunc,['PUT'])
     }
     delete(route: string, routefunc: Function): void{
-        this.addroute(route,routefunc,['delete'])
+        this.addroute(route,routefunc,['DELETE'])
     }
     // THIS METHODS CHANGES THE DEFAULT 404
     set404(html:string): void{
@@ -964,8 +975,7 @@ class Neutrino{
             let lastCommonRoute = this.findLastCommon(url,mainRoute);
             let finalRoute = this.continueConstruction(lastCommonRoute,url);
 
-            finalRoute.methods = methods
-            finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc)
+            finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc,methods)
             newRoute =  finalRoute
 
 
@@ -974,8 +984,7 @@ class Neutrino{
             let lastCommonRoute = this.findLastCommon(url,this._mainDynammic);
             let finalRoute = this.continueConstruction(lastCommonRoute,url);
 
-            finalRoute.methods = methods
-            finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc)
+            finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc,methods)
 
             this._mainDynammic.addChild(finalRoute)
             newRoute =  finalRoute
@@ -996,7 +1005,7 @@ class Neutrino{
             await response.write(this._default404)
             await response.end()
 
-        } else if(!route.methods.includes(request.method)){
+        } else if(!route.methodsFuncs.hasOwnProperty(request.method)){
             //  method not allowed 405 error 
             response.statusCode =  405
             // console.log("a " + request.method + " request on "+ request.url + " not allowed ")
@@ -1171,3 +1180,5 @@ module.exports.corsMiddleware = corsMiddleware
 module.exports.logger = logger
 module.exports.Ware = ware
 module.exports.rateLimiter = rateLimiter
+module.exports.neutrinoRequest = neutrinoRequest
+module.exports.neutrinoResponse = neutrinoResponse

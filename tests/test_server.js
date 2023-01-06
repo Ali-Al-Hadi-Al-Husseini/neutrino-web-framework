@@ -1,4 +1,4 @@
-const Neutrino_pack = require('./Neutrino')
+const Neutrino_pack = require('../build/Neutrino')
 const Router = Neutrino_pack.Router
 const Neutrino = Neutrino_pack.Neutrino
 // const fs = require('fs');
@@ -42,7 +42,7 @@ app.addroute("/me/ali",  async  (req, res,dynamic )=> {
     await res.redirect('/ali');
 });
 app.addroute('/halo', async  (req,res,dynamicpar)=>{
-    await res.render('C:\\Users\\lilo\\Documents\\GitHub\\neutrino-web-framework\\src\\static\\index.ejs')
+    await res.render("C:\\Users\\lilo\\Documents\\GitHub\\neutrino-web-framework\\tests\\static\\index.ejs")
 })
 let router = new Router(app,'/there',(req, res, dynamicpar) => {
         res.sendHtml("<h1> there </h1>");
@@ -54,8 +54,8 @@ router.addRoute("/<place>",(req, res,dynamic ) => {
         res.end()
     })
 
-// app.addStaticPath('C:\\UserL\\lilo\\Documents\\GitHub\\neutrino-web-framework\\src\\static')
-// app.addRateLimiting(10,1)
+// app.addStaticPath('C:\\\\UserL\\\\lilo\\\\Documents\\\\GitHub\\\\neutrino-web-framework\\\\src\\\\static')
+// app.addRateLimiting(10,60)
 // app.enableLogging()
 // app.addStrictSecruityMeasure()
 

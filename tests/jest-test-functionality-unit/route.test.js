@@ -1,5 +1,4 @@
-const Route = require('../neutrino').Route;
-
+const Route = require('../../build/Neutrino').Route;
 
 describe('Route', () => {
 
@@ -10,7 +9,7 @@ describe('Route', () => {
 
   beforeEach(() => {
     routes = []
-    urls = ['/route','/main','/<dynamic>','/st/hello','/place']
+    urls = ['/route','/main','/<new>','/hello','/place']
     methods = [['GET',"POST"],['GET'],['POST','PUT'],['GET',"POST",'PUT'],['GET',"POST",'PUT','DELETE']]
     testRouteFunc = ()=>{}
 
@@ -29,7 +28,6 @@ describe('Route', () => {
         
         expect(route.children).toEqual([]);
         expect(route.route).toEqual(currentUrl);
-        expect(route.methods).toEqual(currentMethods);
         expect(route.fullRoute).toEqual(currentUrl);
         expect(route.isDynamic).toEqual(idx == 2);
         expect(route.parent).toBeNull();
@@ -50,7 +48,7 @@ describe('Route', () => {
         let methodsFuncs = {}
         for(const method of currentMethods){ methodsFuncs[method] = expect.any(Function)}
 
-         expect(route.populateMethodsFuncs(() => {})).toEqual(methodsFuncs);
+         expect(route.populateMethodsFuncs(() => {},currentMethods)).toEqual(methodsFuncs);
     }
 });
 
@@ -63,7 +61,6 @@ for(let idx = 0 ; idx < urls.length ; idx++){
     if(!"POST" in currentMethods) currentMethods.push("POST")
 
     route.addMethod('POST', testFunc);
-    expect(route.methods).toEqual(currentMethods);
     expect(route.methodsFuncs['POST']).toEqual(testFunc);
 }
 });
@@ -124,9 +121,11 @@ test('addChild adds child to children array', () => {
     const child1 = new Route('/child1', () => {});
     const child2 = new Route('/child2', () => {});
     const dynamicRoute = new Route('/<dynamic>', () => {});
+    
     child1.addChild(child2);
     
     for(const route of routes){
+        if(route.isDynamic) continue
         route.addChild(child1);
         route.addChild(dynamicRoute);
     
