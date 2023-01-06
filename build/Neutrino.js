@@ -956,7 +956,7 @@ class Neutrino {
     }
     // CREATES STATIC FILE ROUTE THAT SERVE LOCAL STATICS FILE TO THE BROWSER.
     staticFilesRoute() {
-        const staticRouteFunc = async (request, response, dynamicvars) => {
+        const staticRouteFunc = async (request, response) => {
             let neededFile = '';
             for (const dir of _staticPaths) {
                 const filePath = path.join(dir, request.dynamicParts['fileName']);

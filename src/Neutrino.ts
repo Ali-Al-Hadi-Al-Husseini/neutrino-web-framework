@@ -114,9 +114,7 @@ async function readFile(path: string, logger: logger) {
         return data;
     }
     catch (err) {
-        // console.error(err);
-        logger.logError(String(err) )
-
+        if (logger.enabled) logger.logError(String(err) )
     }
     }
 function corsMiddleware(req:neutrinoRequest, res:neutrinoResponse): void {
@@ -300,9 +298,10 @@ class rateLimiter{
 */
 class logger{
     logFile: string;
-
+    enabled: boolean;
     constructor(){
         this.logFile = 'logs.txt'
+        this.enabled = false
 
     }
 
@@ -766,7 +765,6 @@ class Neutrino{
     _middlewares: middleWare
     _afterware: afterWare
     _logger: logger
-    _log: boolean
     _rateLimiter: rateLimiter
     _allowedDoamins?: string[]
 
@@ -784,7 +782,6 @@ class Neutrino{
         this.staticFilesRoute()
 
         this._logger = new logger()
-        this._log = false;
 
         this._middlewares = new middleWare(this._logger)
         this._afterware = new afterWare(this._logger)
@@ -840,10 +837,10 @@ class Neutrino{
         this._afterware.addWare(afterware)
     }
     disableLogging(): void{
-        this._log = false
+        this._logger.enabled = false
     }
     enableLogging(): void{
-        this._log = true
+        this._logger.enabled = true
     }
     skipMiddlewares(): void{
         this._middlewares.currentWareIdx = this._middlewares.wares.length
@@ -1097,7 +1094,7 @@ class Neutrino{
         this._afterware.startWares(request,response)
 
         // END TIME CAPTURING 
-        if(this._log){await this._logger.mainlog(request,response,performance.now() - requestStart)}
+        if(this._logger.enabled){await this._logger.mainlog(request,response,performance.now() - requestStart)}
 
         }catch(err){
             // console.error(err)
@@ -1130,7 +1127,7 @@ class Neutrino{
 
     // CREATES STATIC FILE ROUTE THAT SERVE LOCAL STATICS FILE TO THE BROWSER.
     staticFilesRoute(){
-        const staticRouteFunc =  async (request: neutrinoRequest, response: neutrinoResponse, dynamicvars: Record<string,string>) =>{
+        const staticRouteFunc =  async (request: neutrinoRequest, response: neutrinoResponse) =>{
             let neededFile:string = ''
             
             for (const dir of _staticPaths) {
