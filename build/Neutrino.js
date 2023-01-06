@@ -220,7 +220,7 @@ class rateLimiter {
         this.maxRequests = 100;
         this.timePeriod = 60;
     }
-    async rateLimit(req, res, next) {
+    rateLimit(req, res, next) {
         // Get the current time
         const now = Date.now();
         // Check if the client's IP address is in the rate limit cache
@@ -245,8 +245,8 @@ class rateLimiter {
         // If the request count is greater than the maximum allowed, return a rate limit exceeded error
         if (this.rateLimitCache[req.ip].requests > this.maxRequests) {
             res.setStatusCode(429);
-            await res.write('Too many requests. Please try again later.');
-            await res.end();
+            res.write('Too many requests. Please try again later.');
+            res.end();
         }
         // If the request count is within the limit, continue to the next middleware or handler
         next();
@@ -380,7 +380,7 @@ class Route {
         AND TO CHECK IF THE INPUT  IS  THE SAME AS
         THIS ISTANCE ROUTE
      */
-    compareRoutes(route) {
+    compareRoutes(route, request) {
         // there are some uncessary ops that could be removed
         let urls = route.split('/');
         let dynamicParts = {};
@@ -409,10 +409,12 @@ class Route {
                 lastIsDynamic = false;
             }
         }
-        if ((curr.fullRoute === route || curr.fullRoute + '/' === route) || lastIsDynamic || curr != this) {
-            return [curr, dynamicParts];
+        let isAValidRoute = (curr.fullRoute === route || curr.fullRoute + '/' === route) || lastIsDynamic || curr != this;
+        if (isAValidRoute) {
+            request.dynamicParts = dynamicParts;
+            return curr;
         }
-        return [null, null];
+        return null;
     }
 }
 /*
@@ -481,11 +483,13 @@ class neutrinoRequest extends IncomingMessageClass {
     ip;
     path;
     cookies;
+    dynamicParts;
     constructor(socket) {
         super(socket);
         this.params = {};
         this.ip = socket.remoteAddress;
         this.cookies = this.parseCookies();
+        this.dynamicParts = {};
         let url = this.url.split('?');
         this.path = url[0];
         //THIS LOOP EXTRACTS THE PARAMETER FROM THE URL
@@ -839,7 +843,7 @@ class Neutrino {
     }
     // adding routes for a specfic method
     // 
-    async decideRequestFate(request, response, dynamicVars, route) {
+    async decideRequestFate(request, response, route) {
         try {
             if (route == null) {
                 // page not found error 404 error 
@@ -857,7 +861,7 @@ class Neutrino {
             }
             else if (route.isDynamic) {
                 try {
-                    await route.methodsFuncs[request.method](request, response, dynamicVars);
+                    await route.methodsFuncs[request.method](request, response);
                     if (!response.statusAlreadySet) {
                         response.statusCode = 200;
                     }
@@ -873,7 +877,7 @@ class Neutrino {
             }
             else {
                 try {
-                    await route.methodsFuncs[request.method](request, response, dynamicVars);
+                    await route.methodsFuncs[request.method](request, response);
                     if (!response.statusAlreadySet) {
                         response.statusCode = 200;
                     }
@@ -914,14 +918,14 @@ class Neutrino {
                 dynamicVars = {};
             }
             else {
-                [routeObj, dynamicVars] = this._route.compareRoutes(url);
+                routeObj = this._route.compareRoutes(url, request);
             }
             if (routeObj == null && this._mainDynammic != null) {
-                [routeObj, dynamicVars] = this._mainDynammic.compareRoutes(url);
+                routeObj = this._mainDynammic.compareRoutes(url, request);
             }
             this._middlewares.startWares(request, response);
             if (!response.writableEnded) {
-                await this.decideRequestFate(request, response, dynamicVars, routeObj);
+                await this.decideRequestFate(request, response, routeObj);
             }
             this._afterware.startWares(request, response);
             // END TIME CAPTURING 
@@ -955,7 +959,7 @@ class Neutrino {
         const staticRouteFunc = async (request, response, dynamicvars) => {
             let neededFile = '';
             for (const dir of _staticPaths) {
-                const filePath = path.join(dir, dynamicvars['fileName']);
+                const filePath = path.join(dir, request.dynamicParts['fileName']);
                 if (await fileExists(filePath, this._logger)) {
                     neededFile = filePath;
                 }

@@ -430,7 +430,7 @@ class Route{
         AND TO CHECK IF THE INPUT  IS  THE SAME AS
         THIS ISTANCE ROUTE
      */
-    compareRoutes(route:string):any  {
+    compareRoutes(route:string,request: neutrinoRequest):any  {
         // there are some uncessary ops that could be removed
         let urls = route.split('/');
         let dynamicParts:Record<string,string> = {};
@@ -463,10 +463,14 @@ class Route{
                 lastIsDynamic = false;
             }
         }
-        if ((curr.fullRoute === route || curr.fullRoute  + '/'=== route )|| lastIsDynamic|| curr != this) {
-            return [curr, dynamicParts];
+
+        let isAValidRoute = (curr.fullRoute === route || curr.fullRoute  + '/'=== route ) || lastIsDynamic || curr != this
+
+        if (isAValidRoute) {
+            request.dynamicParts = dynamicParts
+            return curr
         }
-        return [null, null];
+        return null;
 }    
 }
 
@@ -552,6 +556,7 @@ class neutrinoRequest extends IncomingMessageClass{
     ip:string;
     path:string;
     cookies:Record<string,string>;
+    dynamicParts:Record<string,string>
 
     constructor(socket:any){
         super(socket)
@@ -559,7 +564,7 @@ class neutrinoRequest extends IncomingMessageClass{
         this.params = {};
         this.ip = socket.remoteAddress;
         this.cookies = this.parseCookies();
-
+        this.dynamicParts = {}
 
         let url = this.url.split('?');
 
@@ -996,7 +1001,7 @@ class Neutrino{
     // adding routes for a specfic method
 
     // 
-    async decideRequestFate(request: neutrinoRequest, response: neutrinoResponse,dynamicVars: Record<string,string>  | null,route: Route){
+    async decideRequestFate(request: neutrinoRequest, response: neutrinoResponse,route: Route){
         try{
         if ( route == null) {
             // page not found error 404 error 
@@ -1014,7 +1019,7 @@ class Neutrino{
              
         }else if (route.isDynamic){
             try{
-                await route.methodsFuncs[request.method](request,response,dynamicVars)
+                await route.methodsFuncs[request.method](request,response)
                 if (!response.statusAlreadySet) {
                     response.statusCode = 200;
                 }
@@ -1031,7 +1036,7 @@ class Neutrino{
 
         }else {
             try{
-                await route.methodsFuncs[request.method](request,response,dynamicVars)
+                await route.methodsFuncs[request.method](request,response)
                 if (!response.statusAlreadySet) {
                     response.statusCode = 200;
                 }
@@ -1079,15 +1084,15 @@ class Neutrino{
             routeObj = this._routesobjs[url]
             dynamicVars = {}
         }else{
-            [routeObj,dynamicVars]  = this._route.compareRoutes(url)
+            routeObj  = this._route.compareRoutes(url,request)
         }
         if(routeObj == null &&  this._mainDynammic != null ){
-            [routeObj,dynamicVars] = this._mainDynammic.compareRoutes(url)
+            routeObj = this._mainDynammic.compareRoutes(url,request)
         }
 
         this._middlewares.startWares(request,response)
         if (!response.writableEnded){
-            await this.decideRequestFate(request, response, dynamicVars, routeObj)
+            await this.decideRequestFate(request, response, routeObj)
         }
         this._afterware.startWares(request,response)
 
@@ -1129,7 +1134,7 @@ class Neutrino{
             let neededFile:string = ''
             
             for (const dir of _staticPaths) {
-                const filePath = path.join(dir, dynamicvars['fileName']);
+                const filePath = path.join(dir, request.dynamicParts['fileName']);
                 if ( await fileExists(filePath,this._logger)) {
                     neededFile = filePath;
                 }
