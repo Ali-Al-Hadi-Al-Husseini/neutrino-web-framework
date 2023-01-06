@@ -111,7 +111,7 @@ async function checkInStaticPaths(filename: string){
         return neededFile
 
     } catch(err){
-        if(_logger.enabled) _logger.logError(err) 
+        _logger.logError(err) 
         return neededFile
     }
 }
@@ -119,8 +119,7 @@ async function fileExists(filePath:string) {
     try {
         return await fs.statSync(filePath).isFile();
     } catch (err) {
-
-        if(_logger.enabled) _logger.logError(err)
+         _logger.logError(err)
         // console.error(err)
         return false;
     }
@@ -133,7 +132,7 @@ async function readFile(path: string, logger: logger) {
         return data;
     }
     catch (err) {
-        if (_logger.enabled) _logger.logError(err)
+        _logger.logError(err)
     }
 }
 
@@ -340,6 +339,7 @@ class logger{
 
     }
     async logError(err: any){
+        if(!this.enabled) return
         let errMsg =( `----------------------------- Errors Log --------------------------------\n
                                                     ${String(err)}  \n
                     -------------------------------------------------------------------------\n`)
@@ -351,6 +351,7 @@ class logger{
 
     }
     async log(logMessage: string){
+        if(!this.enabled) return
         let develoerMessage = (  `---------------------------- Developer Logs---------------------------------\n
                                                                 ${logMessage}  \n
                                   -------------------------------------------------------------------------\n`)
@@ -363,7 +364,7 @@ class logger{
     }
 
     async mainlog(req: neutrinoRequest,res: neutrinoResponse, timeTaken: Number){
-
+        if(!this.enabled) return
         await fs.appendFile(this.logFile, this.reqResData(req, res, timeTaken), (err:Error) => {
             if (err) console.error(err);
             
@@ -530,7 +531,7 @@ class neutrinoResponse extends ServerResponseClass{
     async render(fileName:string, templateVars:Record<string,string>={}, ){
 
         let html:string = ''
-        let filePath = checkInStaticPaths(fileName)
+        let filePath = await checkInStaticPaths(fileName)
         let error 
 
         await ejs.renderFile(filePath,templateVars,(err:Error, string:string)=>{
@@ -541,9 +542,8 @@ class neutrinoResponse extends ServerResponseClass{
         });
 
         if (error){
-            if(_logger.enabled){
-                _logger.logError(error)
-            }
+
+            _logger.logError(error)
             this.send404()
             return this
         }
@@ -812,7 +812,6 @@ class Neutrino{
 
         this._mainDynammic = null
         this._routesobjs = {'/': this._route}
-        this.staticFilesRoute()
 
         this._logger = new logger()
 
@@ -821,6 +820,7 @@ class Neutrino{
 
         this._rateLimiter = new rateLimiter()
         this._default404 = this.get404()
+        this.staticFilesRoute()
     }
     get(route: string, routefunc: Function): void{
         this.addroute(route,routefunc,['GET'])
@@ -1128,7 +1128,7 @@ class Neutrino{
         this._afterware.startWares(request,response)
 
         // END TIME CAPTURING 
-        if(this._logger.enabled){await this._logger.mainlog(request,response,performance.now() - requestStart)}
+        await this._logger.mainlog(request,response,performance.now() - requestStart)
 
         }catch(err){
             // console.error(err)

@@ -19,6 +19,7 @@ const ServerResponseClass = http.ServerResponse;
     EXIST
 
 */
+let _logger;
 let page404 = `    <div style=" display: flex;
                         justify-content: center;
                         align-items: center;
@@ -36,7 +37,6 @@ let page404 = `    <div style=" display: flex;
                         Page Not Found
                         </div>
                         </div>`;
-
 const fileTypesToContentType = {
     '.html': 'text/html',
     '.css': 'text/css',
@@ -85,13 +85,31 @@ const fileTypesToContentType = {
 //             console.error(error)
 //         }
 //     }
-
-async function fileExists(filePath, logger) {
+async function checkInStaticPaths(filename) {
+    let neededFile = '';
+    try {
+        for (const dir of _staticPaths) {
+            const filePath = path.join(dir, filename);
+            if (await fileExists(filePath)) {
+                neededFile = filePath;
+                break;
+            }
+        }
+        return neededFile;
+    }
+    catch (err) {
+        if (_logger.enabled)
+            _logger.logError(err);
+        return neededFile;
+    }
+}
+async function fileExists(filePath) {
     try {
         return await fs.statSync(filePath).isFile();
     }
     catch (err) {
-        logger.logError(String(err));
+        if (_logger.enabled)
+            _logger.logError(err);
         // console.error(err)
         return false;
     }
@@ -99,12 +117,12 @@ async function fileExists(filePath, logger) {
 async function readFile(path, logger) {
     try {
         // Read the file as a string
-        const data =  fs.readFileSync(path, 'utf8');
+        const data = await fs.readFileSync(path, 'utf8');
         return data;
     }
     catch (err) {
-        if (logger.enabled)
-            logger.logError(String(err));
+        if (_logger.enabled)
+            _logger.logError(err);
     }
 }
 function corsMiddleware(req, res) {
@@ -160,7 +178,7 @@ class ware {
         }
         catch (err) {
             // console.error(err)
-            this.Logger.logError(String(err));
+            this.Logger.logError(err);
             this.next();
         }
     }
@@ -287,7 +305,7 @@ class logger {
     }
     async logError(err) {
         let errMsg = (`----------------------------- Errors Log --------------------------------\n
-                                                    ${err}  \n
+                                                    ${String(err)}  \n
                     -------------------------------------------------------------------------\n`);
         await fs.appendFile(this.logFile, errMsg, (err) => {
             if (err)
@@ -448,19 +466,24 @@ class neutrinoResponse extends ServerResponseClass {
     // to change the templating framework just replac ejs with framework you want
     async render(fileName, templateVars = {}) {
         let html = '';
+        let filePath = await checkInStaticPaths(fileName);
         let error;
-
-        await ejs.renderFile(fileName, templateVars, (err, string) => {
+        await ejs.renderFile(filePath, templateVars, (err, string) => {
             if (err) {
                 error = err;
                 throw new Error("ejs.render file producing and error");
             }
             html = string;
         });
-        if (error) { }
+        if (error) {
+            if (_logger.enabled) {
+                _logger.logError(error);
+            }
+            this.send404();
+            return this;
+        }
         this.setHeader('Content-Type', 'text/html');
         await this.sendHtml(html);
-
         return this;
     }
     setStatusCode(statusCode) {
@@ -716,6 +739,7 @@ class Neutrino {
         this._logger.enabled = false;
     }
     enableLogging() {
+        _logger = this._logger;
         this._logger.enabled = true;
     }
     skipMiddlewares() {
@@ -874,7 +898,7 @@ class Neutrino {
                 }
                 catch (err) {
                     // console.error(err)
-                    this._logger.logError(String(err));
+                    this._logger.logError(err);
                     response.statusCode = 500;
                     await response.end();
                 }
@@ -890,14 +914,14 @@ class Neutrino {
                 }
                 catch (err) {
                     // console.error(err)
-                    this._logger.logError(String(err));
+                    this._logger.logError(err);
                     response.statusCode = 500;
                     await response.end();
                 }
             }
         }
         catch (err) {
-            this._logger.logError(String(err));
+            this._logger.logError(err);
             // console.error(err)
         }
     }
@@ -939,7 +963,7 @@ class Neutrino {
         }
         catch (err) {
             // console.error(err)
-            this._logger.logError(String(err));
+            this._logger.logError(err);
             if (!response.writableEnded) {
                 response.setStatusCode(500);
                 await request.end();
@@ -961,27 +985,19 @@ class Neutrino {
     // CREATES STATIC FILE ROUTE THAT SERVE LOCAL STATICS FILE TO THE BROWSER.
     staticFilesRoute() {
         const staticRouteFunc = async (request, response) => {
-            let neededFile = '';
-            for (const dir of _staticPaths) {
-                const filePath = path.join(dir, request.dynamicParts['fileName']);
-                if (await fileExists(filePath, this._logger)) {
-                    neededFile = filePath;
-                    break
-                }
-            }
-            response.setStatusCode(200);
-            response.setHeader('Content-Type', fileTypesToContentType[path.extname(neededFile)]);
-            if (neededFile == "") {
+            let neededFilePath = await checkInStaticPaths(request.dynamicParts['filename']);
+            if (neededFilePath == "") {
                 response.setStatusCode(404);
                 await response.end();
             }
             try {
-                const data = await readFile(neededFile, this._logger);
+                response.setStatusCode(200);
+                response.setHeader('Content-Type', fileTypesToContentType[path.extname(neededFilePath)]);
+                const data = readFile(neededFilePath, this._logger);
                 await response.write(data);
             }
             catch (error) {
-                this._logger.logError(String(error));
-                // console.error(error)
+                this._logger.logError(error);
                 response.setStatusCode(500);
             }
         };
