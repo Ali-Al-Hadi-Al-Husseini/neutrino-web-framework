@@ -36,6 +36,7 @@ let page404 = `    <div style=" display: flex;
                         Page Not Found
                         </div>
                         </div>`;
+
 const fileTypesToContentType = {
     '.html': 'text/html',
     '.css': 'text/css',
@@ -84,6 +85,7 @@ const fileTypesToContentType = {
 //             console.error(error)
 //         }
 //     }
+
 async function fileExists(filePath, logger) {
     try {
         return await fs.statSync(filePath).isFile();
@@ -97,12 +99,12 @@ async function fileExists(filePath, logger) {
 async function readFile(path, logger) {
     try {
         // Read the file as a string
-        const data = await fs.readFileSync(path);
+        const data =  fs.readFileSync(path, 'utf8');
         return data;
     }
     catch (err) {
-        // console.error(err);
-        logger.logError(String(err));
+        if (logger.enabled)
+            logger.logError(String(err));
     }
 }
 function corsMiddleware(req, res) {
@@ -268,8 +270,10 @@ class rateLimiter {
 */
 class logger {
     logFile;
+    enabled;
     constructor() {
         this.logFile = 'logs.txt';
+        this.enabled = false;
     }
     reqResData(req, res, timeTaken) {
         return (`=========================================================================\n
@@ -445,6 +449,7 @@ class neutrinoResponse extends ServerResponseClass {
     async render(fileName, templateVars = {}) {
         let html = '';
         let error;
+
         await ejs.renderFile(fileName, templateVars, (err, string) => {
             if (err) {
                 error = err;
@@ -455,6 +460,7 @@ class neutrinoResponse extends ServerResponseClass {
         if (error) { }
         this.setHeader('Content-Type', 'text/html');
         await this.sendHtml(html);
+
         return this;
     }
     setStatusCode(statusCode) {
@@ -645,7 +651,6 @@ class Neutrino {
     _middlewares;
     _afterware;
     _logger;
-    _log;
     _rateLimiter;
     _allowedDoamins;
     constructor(port = 5500) {
@@ -657,7 +662,6 @@ class Neutrino {
         this._routesobjs = { '/': this._route };
         this.staticFilesRoute();
         this._logger = new logger();
-        this._log = false;
         this._middlewares = new middleWare(this._logger);
         this._afterware = new afterWare(this._logger);
         this._rateLimiter = new rateLimiter();
@@ -709,10 +713,10 @@ class Neutrino {
         this._afterware.addWare(afterware);
     }
     disableLogging() {
-        this._log = false;
+        this._logger.enabled = false;
     }
     enableLogging() {
-        this._log = true;
+        this._logger.enabled = true;
     }
     skipMiddlewares() {
         this._middlewares.currentWareIdx = this._middlewares.wares.length;
@@ -929,7 +933,7 @@ class Neutrino {
             }
             this._afterware.startWares(request, response);
             // END TIME CAPTURING 
-            if (this._log) {
+            if (this._logger.enabled) {
                 await this._logger.mainlog(request, response, performance.now() - requestStart);
             }
         }
@@ -962,6 +966,7 @@ class Neutrino {
                 const filePath = path.join(dir, request.dynamicParts['fileName']);
                 if (await fileExists(filePath, this._logger)) {
                     neededFile = filePath;
+                    break
                 }
             }
             response.setStatusCode(200);
@@ -971,7 +976,7 @@ class Neutrino {
                 await response.end();
             }
             try {
-                const data = readFile(neededFile, this._logger);
+                const data = await readFile(neededFile, this._logger);
                 await response.write(data);
             }
             catch (error) {
