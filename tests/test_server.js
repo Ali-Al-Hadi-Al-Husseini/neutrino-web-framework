@@ -39,7 +39,7 @@ app.addroute("/me/ali",  async  (req, res )=> {
     await res.redirect('/ali');
 });
 app.addroute('/halo', async  (req,res)=>{
-    await res.render("index.ejs")
+    await res.render("index.html")
 })
 let router = new Router(app,'/there',(req, res) => {
         res.sendHtml("<h1> there </h1>");

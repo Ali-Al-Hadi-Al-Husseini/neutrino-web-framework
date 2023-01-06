@@ -98,8 +98,7 @@ async function checkInStaticPaths(filename) {
         return neededFile;
     }
     catch (err) {
-        if (_logger.enabled)
-            _logger.logError(err);
+        _logger.logError(err);
         return neededFile;
     }
 }
@@ -108,8 +107,7 @@ async function fileExists(filePath) {
         return await fs.statSync(filePath).isFile();
     }
     catch (err) {
-        if (_logger.enabled)
-            _logger.logError(err);
+        _logger.logError(err);
         // console.error(err)
         return false;
     }
@@ -121,8 +119,7 @@ async function readFile(path, logger) {
         return data;
     }
     catch (err) {
-        if (_logger.enabled)
-            _logger.logError(err);
+        _logger.logError(err);
     }
 }
 function corsMiddleware(req, res) {
@@ -304,6 +301,8 @@ class logger {
              -------------------------------------------------------------------------\n`);
     }
     async logError(err) {
+        if (!this.enabled)
+            return;
         let errMsg = (`----------------------------- Errors Log --------------------------------\n
                                                     ${String(err)}  \n
                     -------------------------------------------------------------------------\n`);
@@ -313,6 +312,8 @@ class logger {
         });
     }
     async log(logMessage) {
+        if (!this.enabled)
+            return;
         let develoerMessage = (`---------------------------- Developer Logs---------------------------------\n
                                                                 ${logMessage}  \n
                                   -------------------------------------------------------------------------\n`);
@@ -322,6 +323,8 @@ class logger {
         });
     }
     async mainlog(req, res, timeTaken) {
+        if (!this.enabled)
+            return;
         await fs.appendFile(this.logFile, this.reqResData(req, res, timeTaken), (err) => {
             if (err)
                 console.error(err);
@@ -476,9 +479,7 @@ class neutrinoResponse extends ServerResponseClass {
             html = string;
         });
         if (error) {
-            if (_logger.enabled) {
-                _logger.logError(error);
-            }
+            _logger.logError(error);
             this.send404();
             return this;
         }
@@ -683,12 +684,12 @@ class Neutrino {
         this._route = new Route('', (req, res) => { res.sendHtml("<h1>Neutrino</h1>"); });
         this._mainDynammic = null;
         this._routesobjs = { '/': this._route };
-        this.staticFilesRoute();
         this._logger = new logger();
         this._middlewares = new middleWare(this._logger);
         this._afterware = new afterWare(this._logger);
         this._rateLimiter = new rateLimiter();
         this._default404 = this.get404();
+        this.staticFilesRoute();
     }
     get(route, routefunc) {
         this.addroute(route, routefunc, ['GET']);
@@ -957,9 +958,7 @@ class Neutrino {
             }
             this._afterware.startWares(request, response);
             // END TIME CAPTURING 
-            if (this._logger.enabled) {
-                await this._logger.mainlog(request, response, performance.now() - requestStart);
-            }
+            await this._logger.mainlog(request, response, performance.now() - requestStart);
         }
         catch (err) {
             // console.error(err)

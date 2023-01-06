@@ -1109,11 +1109,11 @@ class Neutrino{
 
         //FIND THE THE RIGHT ROUTE OBJECT FOR THE GIVEN URL
         let routeObj:Route;
-        let dynamicVars:Record <string,string>;
+
 
         if(url in this._routesobjs){
             routeObj = this._routesobjs[url]
-            dynamicVars = {}
+
         }else{
             routeObj  = this._route.compareRoutes(url,request)
         }
