@@ -41,7 +41,7 @@ app.addroute("/main", (req, res) => {
      res.write("<h1>Hello World !</h1>");
  });
 ```
-###### Re-initializing the route causes the existing functions and methods associated with it to be replaced. In this case, the overwrite resulted in the '/main' route returning "<h1>Hello World !</h1>" instead of "<h1>Hello World </h1>"
+###### Re-initializing the route causes the existing functions and methods associated with it to be replaced. In this case, the overwrite resulted in the '/main' route returning ```"<h1>Hello World !</h1>" instead of "<h1>Hello World </h1>" ```
 
 #### Adding A Allowed Methods
 ```javascript
