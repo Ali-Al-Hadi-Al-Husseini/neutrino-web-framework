@@ -139,11 +139,12 @@ async function readFile(path: string, logger: logger) {
 
 function corsMiddleware(allowedDomains:string[] ): Function {
 
-    const innerMethod = (req:neutrinoRequest, res:neutrinoResponse) => {
+    const innerMethod = (req:neutrinoRequest, res:neutrinoResponse,next: Function) => {
         res.setHeader('Access-Control-Allow-Origin', allowedDomains)
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.setHeader('Access-Control-Max-Age', '3600');
+        next()
     }
     return innerMethod
 
@@ -751,7 +752,7 @@ class Router{
 
         }else if((urls.length <= 2 && urls[1][0] == '<') ){
 
-            this._mainRoute.dynamicRoute = new Route("/"+urls[1],routeFunc,methods)
+            this._mainRoute.dynamicRoute = new Route("/" + urls[1], routeFunc, methods)
             this._mainRoute.dynamicRoute.setParent(this._mainRoute)
 
 

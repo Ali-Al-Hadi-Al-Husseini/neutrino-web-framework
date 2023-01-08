@@ -37,6 +37,7 @@ let page404 = `    <div style=" display: flex;
                         Page Not Found
                         </div>
                         </div>`;
+
 const fileTypesToContentType = {
     '.html': 'text/html',
     '.css': 'text/css',
@@ -122,11 +123,14 @@ async function readFile(path, logger) {
         _logger.logError(err);
     }
 }
-function corsMiddleware(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.setHeader('Access-Control-Max-Age', '3600');
+function corsMiddleware(allowedDomains) {
+    const innerMethod = (req, res, next) => {
+        res.setHeader('Access-Control-Allow-Origin', allowedDomains);
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        res.setHeader('Access-Control-Max-Age', '3600');
+    };
+    return innerMethod;
 }
 function removeAddons(str) {
     let dynamicPart = str;
@@ -762,31 +766,41 @@ class Neutrino {
     resetLimit(maxRequest, timePeriod) {
         this._rateLimiter.setLimit(maxRequest, timePeriod);
     }
-    addStrictSecruityMeasures() {
+    addStrictSecruityMeasures(allowedDomains) {
+        /*
+            helmet(): This middleware sets various HTTP headers to help protect your app from some well-known web vulnerabilities by setting the following HTTP headers:
+            X-Content-Type-Options: nosniff: Prevents browser from trying to guess the MIME type of a file and using it in the event that the server doesn't specify one.
+            X-DNS-Prefetch-Control: off: Prevents DNS prefetching by the browser, which can leak information about your app's structure and third-party requests.
+            X-Frame-Options: SAMEORIGIN: Prevents your app from being embedded in a frame or iframe on another site, which could allow clickjacking attacks.
+            X-XSS-Protection: 1; mode=block: Enables the browser's built-in XSS protection.
+        */
         this.use(helmet());
         this.use(helmet.dnsPrefetchControl());
         this.use(helmet.expectCt());
-        this.use(helmet.frameguard({ action: 'deny' }));
         this.use(helmet.hidePoweredBy());
         this.use(helmet.hsts({ maxAge: 31536000 }));
         this.use(helmet.ieNoOpen());
         this.use(helmet.noSniff());
         this.use(helmet.permittedCrossDomainPolicies());
         this.use(helmet.xssFilter());
-        this.use(corsMiddleware);
+        this.use(helmet.cacheControl({
+            noCache: true, // disable caching
+        }));
+        this.setAllowedDomains(allowedDomains);
     }
-    setAllowedDomains(Domains) {
-        this._allowedDoamins = Domains;
+    setAllowedDomains(allowedDomains) {
+        this._allowedDoamins = allowedDomains;
         this.use(helmet.frameguard({
             action: 'sameorigin',
-            frameAncestors: Domains
+            frameAncestors: allowedDomains
         }));
         this.use(helmet.contentSecurityPolicy({
             directives: {
                 defaultSrc: this._allowedDoamins != undefined ? this._allowedDoamins : ["'self'"],
-                styleSrc: ["'self'", 'maxcdn.bootstrapcdn.com', ...Domains]
+                styleSrc: ["'self'", 'maxcdn.bootstrapcdn.com', ...allowedDomains]
             }
         }));
+        this.use(corsMiddleware(allowedDomains));
     }
     /*
         
@@ -941,10 +955,17 @@ class Neutrino {
             // console.log("Got a " + request.method + " request on " + url);
             //FIND THE THE RIGHT ROUTE OBJECT FOR THE GIVEN URL
             let routeObj;
-            let dynamicVars;
+            /*
+                    *checks if url in routeobjs object
+                    *only return true if the route is not dynmaic
+                    *If it is not found in the route objects,
+                    tree traversal is used to locate a matching
+                    dynamic route in the main route object.
+                    
+    
+            */
             if (url in this._routesobjs) {
                 routeObj = this._routesobjs[url];
-                dynamicVars = {};
             }
             else {
                 routeObj = this._route.compareRoutes(url, request);
@@ -952,6 +973,10 @@ class Neutrino {
             if (routeObj == null && this._mainDynammic != null) {
                 routeObj = this._mainDynammic.compareRoutes(url, request);
             }
+            /*
+                this part handles three parts middlware, given fucnction
+            g
+            */
             this._middlewares.startWares(request, response);
             if (!response.writableEnded) {
                 await this.decideRequestFate(request, response, routeObj);
@@ -992,7 +1017,7 @@ class Neutrino {
             try {
                 response.setStatusCode(200);
                 response.setHeader('Content-Type', fileTypesToContentType[path.extname(neededFilePath)]);
-                const data = readFile(neededFilePath, this._logger);
+                const data = await readFile(neededFilePath, this._logger);
                 await response.write(data);
             }
             catch (error) {
