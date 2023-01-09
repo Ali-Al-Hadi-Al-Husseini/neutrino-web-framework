@@ -53,7 +53,7 @@
 | TOTAL|640000|229|0|15413|517.1363610147285|0.0784734375|1095.7778310447559|467.0930389883959|157.20168445076277|436.4965765625|
 
 
-#### According to tests performed by me  using Apache JMeter(number of threads used in tests is  between 1000-1500), my framework outperformed express by approximately 57-45%(51% avg). The servers used in the stress tests are listed in the stress tests folder.
+### According to tests conducted by me using Apache JMeter, the number of threads used in tests was between 1000-1500. My framework outperformed express by approximately 57%-45% (51% average). The servers used in the stress tests are listed in the stress tests folder.
 
 # Old Neutrino
 | Label | #Samples | Average | Min | Max | Std. Dev. | Error% | Throughput | Received KB/sec | Sent Kb/sec | Avg. Bytes  |
@@ -97,5 +97,5 @@
 
 
 
-#### Improved performance by 83% by using asynchronous programing, improving code design, and remocing uncessery operations 
+### Improved performance by 83% by using asynchronous programing, improving code design, and removing uncessery operations 
 
