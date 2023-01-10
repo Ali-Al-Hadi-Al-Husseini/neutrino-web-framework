@@ -74,7 +74,7 @@ app.get("/main", (req, res) => {
 const Neutrino = require("./neutrino")
 const Router = require("./neutrino")
 const app = new  Neutrino()
-const router = new Router(app,'/main',(req:any, res:any, dynamicpar:any) => {
+const router = new Router(app,'/main',(req:any, res:any,) => {
        res.write("<h1>Hello World </h1>");
      })
 router.addroute("/profile", (req, res) => {
@@ -187,7 +187,6 @@ response.sendHtml(html)// take one argument text/html and writes the html to the
 
 ```
 ##### You can also use all of methods and properties of  http IncomingMessage Class [Visit Nodejs documention for more information](https://nodejs.org/api/http.html#class-httpincomingmessage)
-
 
 
 

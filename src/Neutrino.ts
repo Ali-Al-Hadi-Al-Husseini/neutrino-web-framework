@@ -125,7 +125,7 @@ async function fileExists(filePath:string) {
     }
 }
 
-async function readFile(path: string, logger: logger) {
+async function readFile(path: string) {
     try {
         // Read the file as a string
         const data = await fs.readFileSync(path, 'utf8');
@@ -333,21 +333,23 @@ class logger{
 
     reqResData(req: neutrinoRequest,res: neutrinoResponse, timeTaken: Number): string {
 
-        return (`=========================================================================\n
-             ----   logged on   ${new Date().toISOString()}  \n
-             ----   from the following ip =>   ${req.ip} \n
-             ----   recived a   req.method   request to url =>   ${req.url} \n
-             ----   request recived with follwoing cookies   ${JSON.stringify(req.cookies)}  \n
-             ----   response status   ${res.statusCode.toString()} \n
-             ----   response took   ${parseFloat(timeTaken.toFixed(2))}   milliseconds to process \n 
-             -------------------------------------------------------------------------\n`)
+        return (
+            `=========================================================================
+            ----   logged on   ${new Date().toISOString()}  \n
+            ----   from the following ip =>   ${req.ip} \n
+            ----   recived a   req.method   request to url =>   ${req.url} \n
+            ----   request recived with follwoing cookies   ${JSON.stringify(req.cookies)}  \n
+            ----   response status   ${res.statusCode.toString()} \n
+            ----   response took   ${parseFloat(timeTaken.toFixed(2))}   milliseconds to process \n 
+            -------------------------------------------------------------------------\n`)
 
     }
     async logError(err: any){
         if(!this.enabled) return
-        let errMsg =( `----------------------------- Errors Log --------------------------------\n
-                                                    ${String(err)}  \n
-                    -------------------------------------------------------------------------\n`)
+        let errMsg =(
+        `----------------------------- Errors Log --------------------------------
+        ----${String(err)}  \n
+        -------------------------------------------------------------------------\n`)
         
         await fs.appendFile(this.logFile, errMsg, (err:Error) => {
         if (err) console.error(err);
@@ -357,9 +359,10 @@ class logger{
     }
     async log(logMessage: string){
         if(!this.enabled) return
-        let develoerMessage = (  `---------------------------- Developer Logs---------------------------------\n
-                                                                ${logMessage}  \n
-                                  -------------------------------------------------------------------------\n`)
+        let develoerMessage = (
+            `---------------------------- Developer Logs---------------------------------
+            ----${logMessage}  \n
+            ----------------------------------------------------------------------------\n`)
 
             await fs.appendFile(this.logFile, develoerMessage, (err:Error) => {
                 if (err) console.error(err);
@@ -891,7 +894,7 @@ class Neutrino{
         this._middlewares.insertWare(middlware,idx)
     }
     insertAfterware(afterware:Function, idx:number): void{
-        this._middlewares.insertWare(afterware,idx)
+        this._afterware.insertWare(afterware,idx)
     }
     addRateLimiting(maxRequest: number, timePeriod: number): void{
         this._rateLimiter.setLimit(maxRequest, timePeriod)
@@ -1200,7 +1203,7 @@ class Neutrino{
             try{
                 response.setStatusCode(200)
                 response.setHeader('Content-Type',fileTypesToContentType[path.extname(neededFilePath)])
-                const data = await   readFile(neededFilePath, this._logger)
+                const data = await   readFile(neededFilePath)
                 await response.write(data)
     
             }catch (error){

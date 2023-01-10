@@ -37,7 +37,6 @@ let page404 = `    <div style=" display: flex;
                         Page Not Found
                         </div>
                         </div>`;
-
 const fileTypesToContentType = {
     '.html': 'text/html',
     '.css': 'text/css',
@@ -113,7 +112,7 @@ async function fileExists(filePath) {
         return false;
     }
 }
-async function readFile(path, logger) {
+async function readFile(path) {
     try {
         // Read the file as a string
         const data = await fs.readFileSync(path, 'utf8');
@@ -129,6 +128,7 @@ function corsMiddleware(allowedDomains) {
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.setHeader('Access-Control-Max-Age', '3600');
+        next();
     };
     return innerMethod;
 }
@@ -295,21 +295,21 @@ class logger {
         this.enabled = false;
     }
     reqResData(req, res, timeTaken) {
-        return (`=========================================================================\n
-             ----   logged on   ${new Date().toISOString()}  \n
-             ----   from the following ip =>   ${req.ip} \n
-             ----   recived a   req.method   request to url =>   ${req.url} \n
-             ----   request recived with follwoing cookies   ${JSON.stringify(req.cookies)}  \n
-             ----   response status   ${res.statusCode.toString()} \n
-             ----   response took   ${parseFloat(timeTaken.toFixed(2))}   milliseconds to process \n 
-             -------------------------------------------------------------------------\n`);
+        return (`=========================================================================
+            ----   logged on   ${new Date().toISOString()}  \n
+            ----   from the following ip =>   ${req.ip} \n
+            ----   recived a   req.method   request to url =>   ${req.url} \n
+            ----   request recived with follwoing cookies   ${JSON.stringify(req.cookies)}  \n
+            ----   response status   ${res.statusCode.toString()} \n
+            ----   response took   ${parseFloat(timeTaken.toFixed(2))}   milliseconds to process \n 
+            -------------------------------------------------------------------------\n`);
     }
     async logError(err) {
         if (!this.enabled)
             return;
-        let errMsg = (`----------------------------- Errors Log --------------------------------\n
-                                                    ${String(err)}  \n
-                    -------------------------------------------------------------------------\n`);
+        let errMsg = (`----------------------------- Errors Log --------------------------------
+        ----${String(err)}  \n
+        -------------------------------------------------------------------------\n`);
         await fs.appendFile(this.logFile, errMsg, (err) => {
             if (err)
                 console.error(err);
@@ -318,9 +318,9 @@ class logger {
     async log(logMessage) {
         if (!this.enabled)
             return;
-        let develoerMessage = (`---------------------------- Developer Logs---------------------------------\n
-                                                                ${logMessage}  \n
-                                  -------------------------------------------------------------------------\n`);
+        let develoerMessage = (`---------------------------- Developer Logs---------------------------------
+            ----${logMessage}  \n
+            ----------------------------------------------------------------------------\n`);
         await fs.appendFile(this.logFile, develoerMessage, (err) => {
             if (err)
                 console.error(err);
@@ -757,7 +757,7 @@ class Neutrino {
         this._middlewares.insertWare(middlware, idx);
     }
     insertAfterware(afterware, idx) {
-        this._middlewares.insertWare(afterware, idx);
+        this._afterware.insertWare(afterware, idx);
     }
     addRateLimiting(maxRequest, timePeriod) {
         this._rateLimiter.setLimit(maxRequest, timePeriod);
@@ -1017,7 +1017,7 @@ class Neutrino {
             try {
                 response.setStatusCode(200);
                 response.setHeader('Content-Type', fileTypesToContentType[path.extname(neededFilePath)]);
-                const data = await readFile(neededFilePath, this._logger);
+                const data = await readFile(neededFilePath);
                 await response.write(data);
             }
             catch (error) {
