@@ -901,7 +901,7 @@ class Neutrino{
         this._middlewares.insertWare(this._rateLimiter.rateLimit.bind(this._rateLimiter),0)
 
     }
-    resetLimit(maxRequest: number, timePeriod: number): void{
+    resetRateLimit(maxRequest: number, timePeriod: number): void{
         this._rateLimiter.setLimit(maxRequest, timePeriod)
     }
     addStrictSecruityMeasures(allowedDomains: string[]): void{
