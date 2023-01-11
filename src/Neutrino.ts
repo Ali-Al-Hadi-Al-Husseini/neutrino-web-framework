@@ -185,23 +185,23 @@ class ware{
         this.request = request
         this.response = response
     }
-    startWares(request:neutrinoRequest, response: neutrinoResponse): void{
+    async startWares(request:neutrinoRequest, response: neutrinoResponse): Promise<void>{
         this.setReqRes(request, response)
-        this.next() 
+        await this.next() 
     }
     addWare(middleware: Function): void{
         this.wares.push(middleware)
     }
 
-    next(): void{
+    async next(): Promise<void>{
         try {
             this.currentWareIdx += 1 
             if (this.currentWareIdx >= this.wares.length) return this.reset()
-            this.wares[this.currentWareIdx](this.request,this.response,this.next.bind(this))
+            await this.wares[this.currentWareIdx](this.request,this.response,this.next.bind(this))
         }catch(err){
             // console.error(err)
 
-            this.Logger.logError(err)
+            await this.Logger.logError(err)
             this.next()
         }
 
@@ -460,7 +460,7 @@ class Route{
         AND TO CHECK IF THE INPUT  IS  THE SAME AS
         THIS ISTANCE ROUTE
      */
-    compareRoutes(route:string,request: neutrinoRequest):any  {
+    async compareRoutes(route:string,request: neutrinoRequest):Promise<any>  {
         // there are some uncessary ops that could be removed
         let urls = route.split('/');
         let dynamicParts:Record<string,string> = {};
@@ -1143,21 +1143,21 @@ class Neutrino{
             routeObj = this._routesobjs[url]
 
         }else{
-            routeObj  = this._route.compareRoutes(url,request)
+            routeObj  = await this._route.compareRoutes(url,request)
         }
         if(routeObj == null &&  this._mainDynammic != null ){
-            routeObj = this._mainDynammic.compareRoutes(url,request)
+            routeObj = await this._mainDynammic.compareRoutes(url,request)
         }
 
         /*
             this part handles three parts middlware, given fucnction 
         g
         */
-        this._middlewares.startWares(request,response)
+        await this._middlewares.startWares(request,response)
         if (!response.writableEnded){
             await this.decideRequestFate(request, response, routeObj)
         }
-        this._afterware.startWares(request,response)
+        await this._afterware.startWares(request,response)
 
         // END TIME CAPTURING 
         await this._logger.mainlog(request,response,performance.now() - requestStart)

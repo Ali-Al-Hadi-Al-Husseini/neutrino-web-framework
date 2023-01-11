@@ -163,23 +163,23 @@ class ware {
         this.request = request;
         this.response = response;
     }
-    startWares(request, response) {
+    async startWares(request, response) {
         this.setReqRes(request, response);
-        this.next();
+        await this.next();
     }
     addWare(middleware) {
         this.wares.push(middleware);
     }
-    next() {
+    async next() {
         try {
             this.currentWareIdx += 1;
             if (this.currentWareIdx >= this.wares.length)
                 return this.reset();
-            this.wares[this.currentWareIdx](this.request, this.response, this.next.bind(this));
+            await this.wares[this.currentWareIdx](this.request, this.response, this.next.bind(this));
         }
         catch (err) {
             // console.error(err)
-            this.Logger.logError(err);
+            await this.Logger.logError(err);
             this.next();
         }
     }
@@ -409,7 +409,7 @@ class Route {
         AND TO CHECK IF THE INPUT  IS  THE SAME AS
         THIS ISTANCE ROUTE
      */
-    compareRoutes(route, request) {
+    async compareRoutes(route, request) {
         // there are some uncessary ops that could be removed
         let urls = route.split('/');
         let dynamicParts = {};
@@ -968,10 +968,10 @@ class Neutrino {
                 routeObj = this._routesobjs[url];
             }
             else {
-                routeObj = this._route.compareRoutes(url, request);
+                routeObj = await this._route.compareRoutes(url, request);
             }
             if (routeObj == null && this._mainDynammic != null) {
-                routeObj = this._mainDynammic.compareRoutes(url, request);
+                routeObj = await this._mainDynammic.compareRoutes(url, request);
             }
             /*
                 this part handles three parts middlware, given fucnction
