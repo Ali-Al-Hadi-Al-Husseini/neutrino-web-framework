@@ -188,7 +188,7 @@ response.sendHtml(html)// take one argument text/html and writes the html to the
 ```
 ##### You can also use all of methods and properties of  http IncomingMessage Class [Visit Nodejs documention for more information](https://nodejs.org/api/http.html#class-httpincomingmessage)
 
-#### Adding Static Siles Folder 
+#### Adding Static Files Folder 
 ```javascript
 const Neutrino = require("./neutrino")
 const app = new  Neutrino()
