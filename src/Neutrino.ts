@@ -1185,7 +1185,7 @@ class Neutrino{
         console.log("Neutrino Server live at http://127.0.0.1:" + this._port)
 
         // THE ON METHODS GIVES US THE ABILITY TO EXECUTE A FUNCTION WHEN A REQUEST IS RECIEVED
-        this._server.on('request',await this.handleRequest.bind(this));
+        await this._server.on('request',this.handleRequest.bind(this));
     }
 
 
