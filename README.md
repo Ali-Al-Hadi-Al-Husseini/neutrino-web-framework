@@ -231,4 +231,28 @@ app.resetRateLimit(newMaxRequests,newTimePeriod) // resets the rate limit
 
 
  
- #### app.addRateLimiting methods takes two arguments maxRequests and timeperiods.In exmaple given above it shows how to use it and the example limits 10 request for each ip-addrs for each minute  
+#### app.addRateLimiting methods takes two arguments maxRequests and timeperiods.In exmaple given above it shows how to use it and the example limits 10 request for each ip-addrs for each minute  
+
+
+#### Adding Logging
+```javascript
+const Neutrino = require("./neutrino")
+const app = new  Neutrino()
+app.addroute('/main',(request,response) =>{
+
+app.enableLogging()// activates logging
+aap.disableLogging() // diables logging
+}) 
+```
+
+#### Logging A Message
+#### Adding Logging
+```javascript
+const Neutrino = require("./neutrino")
+const app = new  Neutrino()
+app.addroute('/main',(request,response) =>{
+
+let yourLogMessage = "Hello Wordld!"
+app.log(yourLogMessage)
+}) 
+```
