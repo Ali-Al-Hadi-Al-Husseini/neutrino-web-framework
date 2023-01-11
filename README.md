@@ -188,6 +188,8 @@ response.sendHtml(html)// take one argument text/html and writes the html to the
 ```
 ##### You can also use all of methods and properties of  http IncomingMessage Class [Visit Nodejs documention for more information](https://nodejs.org/api/http.html#class-httpincomingmessage)
 
+### General Functionalities 
+
 #### Adding Static Files Folder 
 ```javascript
 const Neutrino = require("./neutrino")
@@ -195,10 +197,21 @@ const app = new  Neutrino()
 app.addroute('/main',(request,response) =>{
 
 app.addStaticPath('path\\to\\static\\folder')
-})
+}) 
+```
+#### Adding Rate-limiting 
+```javascript
+const Neutrino = require("./neutrino")
+const app = new  Neutrino()
+app.addroute('/main',(request,response) =>{
+
+let maxRequests = 10
+let timePeriod = 60 // time in seconds
+
+app.addRateLimiting(maxRequests,timePeriod)
+}) 
+```
 
 
- ###### The module also has Request and Response classes that has a couple of functionality (parseing cookies,getting client ip, etc..)
- ###### and there are a number of general purpose functions  (reading html content)
  
- 
+ #### app.addRateLimiting methods takes two arguments maxRequests and timeperiods.In exmaple given above it shows how to use it and the example limits 10 request for each ip-addrs for each minute  
