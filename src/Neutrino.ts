@@ -815,7 +815,7 @@ class Neutrino{
         this._server = http.createServer({ ServerResponse: neutrinoResponse ,IncomingMessage : neutrinoRequest});
         this._port   = port;
 
-        this._404Route = new Route('',(req:neutrinoResponse,res:neutrinoRequest)=>{res.sendHtml(this.get404())})
+        this._404Route = new Route('',(req:neutrinoResponse,res:neutrinoRequest)=>{res.sendHtml(this.get404()).bind(this)})
         this._route = new Route('',(req:neutrinoResponse,res:neutrinoRequest)=>{res.sendHtml("<h1>Neutrino</h1>")});
 
         this._mainDynammic = null
@@ -1059,11 +1059,8 @@ class Neutrino{
         try{
         if ( route == null) {
             // page not found error 404 error 
-            response.statusCode =  404
-            // console.log("response on " + request.url + " failed")
-            await response.write(this._default404)
-            await response.end()
-
+            this._404Route.methodsFuncs['GET'](request,response)
+            
         } else if(!route.methodsFuncs.hasOwnProperty(request.method)){
             //  method not allowed 405 error 
             response.statusCode =  405
