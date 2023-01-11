@@ -98,7 +98,7 @@ async function checkInStaticPaths(filename) {
         return neededFile;
     }
     catch (err) {
-        _logger.logError(err);
+        await _logger.logError(err);
         return neededFile;
     }
 }
@@ -107,7 +107,7 @@ async function fileExists(filePath) {
         return await fs.statSync(filePath).isFile();
     }
     catch (err) {
-        _logger.logError(err);
+        await _logger.logError(err);
         // console.error(err)
         return false;
     }
@@ -119,7 +119,7 @@ async function readFile(path) {
         return data;
     }
     catch (err) {
-        _logger.logError(err);
+        await _logger.logError(err);
     }
 }
 function corsMiddleware(allowedDomains) {
@@ -483,7 +483,7 @@ class neutrinoResponse extends ServerResponseClass {
             html = string;
         });
         if (error) {
-            _logger.logError(error);
+            await _logger.logError(error);
             this.send404();
             return this;
         }
@@ -589,8 +589,8 @@ class Router {
     _app;
     constructor(app, mainRoute, routeFunc = (req, res) => { res.write(page404); }, methods = ["GET"]) {
         this._app = app;
-        let lastFound = this._app.findLastCommon(mainRoute, this._app._route);
-        this._mainRoute = this._app.continueConstruction(lastFound, mainRoute);
+        let lastFound = this._app._findLastCommon(mainRoute, this._app._route);
+        this._mainRoute = this._app._continueConstruction(lastFound, mainRoute);
         this._mainRoute.methodsFuncs = this._mainRoute.populateMethodsFuncs(routeFunc, methods);
     }
     /*
@@ -599,7 +599,7 @@ class Router {
         INPUT URL(ROUTE)
 
     */
-    findLastCommon(route, mainRoute) {
+    _findLastCommon(route, mainRoute) {
         let urls = route.split("/");
         let curr = mainRoute;
         for (let url of urls) {
@@ -617,7 +617,7 @@ class Router {
         return curr;
     }
     // ADD ROUTES TO THE TREE SO IT CANNED BE PARSED TO GET THR URL 
-    continueConstruction(lastRoute, url) {
+    _continueConstruction(lastRoute, url) {
         const lastFoundidx = lastRoute.fullRoute.split('/').length;
         let urls = url.split('/');
         urls = urls.splice(lastFoundidx, urls.length);
@@ -650,13 +650,13 @@ class Router {
         else {
             let mainRoute = this._mainRoute;
             if (mainRoute != null) {
-                let lastCommonRoute = this.findLastCommon(url, mainRoute);
-                let finalRoute = this.continueConstruction(lastCommonRoute, url);
+                let lastCommonRoute = this._findLastCommon(url, mainRoute);
+                let finalRoute = this._continueConstruction(lastCommonRoute, url);
                 finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc, methods);
             }
             else {
-                let lastCommonRoute = this.findLastCommon(url, this._mainRoute.dynamicRoute);
-                let finalRoute = this.continueConstruction(lastCommonRoute, url);
+                let lastCommonRoute = this._findLastCommon(url, this._mainRoute.dynamicRoute);
+                let finalRoute = this._continueConstruction(lastCommonRoute, url);
                 finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc, methods);
                 this._mainRoute.dynamicRoute.addChild(finalRoute);
             }
@@ -808,7 +808,7 @@ class Neutrino {
         INPUT URL(ROUTE)
 
     */
-    findLastCommon(route, mainRoute) {
+    _findLastCommon(route, mainRoute) {
         let urls = route.split("/");
         let curr = mainRoute;
         for (let url of urls) {
@@ -826,7 +826,7 @@ class Neutrino {
         return curr;
     }
     // ADD ROUTES TO THE TREE SO IT CANNED BE PARSED TO GET THR URL 
-    continueConstruction(lastRoute, url) {
+    _continueConstruction(lastRoute, url) {
         const lastFoundidx = lastRoute.fullRoute.split('/').length;
         let urls = url.split('/');
         urls = urls.splice(lastFoundidx, urls.length);
@@ -870,14 +870,14 @@ class Neutrino {
             this._route.addChild(newMainRoute);
         }
         else if (mainRoute != null) {
-            let lastCommonRoute = this.findLastCommon(url, mainRoute);
-            let finalRoute = this.continueConstruction(lastCommonRoute, url);
+            let lastCommonRoute = this._findLastCommon(url, mainRoute);
+            let finalRoute = this._continueConstruction(lastCommonRoute, url);
             finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc, methods);
             newRoute = finalRoute;
         }
         else if (this._mainDynammic != null) {
-            let lastCommonRoute = this.findLastCommon(url, this._mainDynammic);
-            let finalRoute = this.continueConstruction(lastCommonRoute, url);
+            let lastCommonRoute = this._findLastCommon(url, this._mainDynammic);
+            let finalRoute = this._continueConstruction(lastCommonRoute, url);
             finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc, methods);
             this._mainDynammic.addChild(finalRoute);
             newRoute = finalRoute;
@@ -913,7 +913,7 @@ class Neutrino {
                 }
                 catch (err) {
                     // console.error(err)
-                    this._logger.logError(err);
+                    await this._logger.logError(err);
                     response.statusCode = 500;
                     await response.end();
                 }
@@ -929,14 +929,14 @@ class Neutrino {
                 }
                 catch (err) {
                     // console.error(err)
-                    this._logger.logError(err);
+                    await this._logger.logError(err);
                     response.statusCode = 500;
                     await response.end();
                 }
             }
         }
         catch (err) {
-            this._logger.logError(err);
+            await this._logger.logError(err);
             // console.error(err)
         }
     }
@@ -987,7 +987,7 @@ class Neutrino {
         }
         catch (err) {
             // console.error(err)
-            this._logger.logError(err);
+            await this._logger.logError(err);
             if (!response.writableEnded) {
                 response.setStatusCode(500);
                 await request.end();
@@ -1021,7 +1021,7 @@ class Neutrino {
                 await response.write(data);
             }
             catch (error) {
-                this._logger.logError(error);
+                await this._logger.logError(error);
                 response.setStatusCode(500);
             }
         };

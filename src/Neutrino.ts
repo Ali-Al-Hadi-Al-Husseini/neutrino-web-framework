@@ -111,7 +111,7 @@ async function checkInStaticPaths(filename: string){
         return neededFile
 
     } catch(err){
-        _logger.logError(err) 
+        await _logger.logError(err) 
         return neededFile
     }
 }
@@ -119,7 +119,7 @@ async function fileExists(filePath:string) {
     try {
         return await fs.statSync(filePath).isFile();
     } catch (err) {
-         _logger.logError(err)
+        await  _logger.logError(err)
         // console.error(err)
         return false;
     }
@@ -132,7 +132,7 @@ async function readFile(path: string) {
         return data;
     }
     catch (err) {
-        _logger.logError(err)
+        await _logger.logError(err)
     }
 }
 
@@ -551,7 +551,7 @@ class neutrinoResponse extends ServerResponseClass{
 
         if (error){
 
-            _logger.logError(error)
+            await _logger.logError(error)
             this.send404()
             return this
         }
@@ -687,8 +687,8 @@ class Router{
     constructor(app: Neutrino,mainRoute: string, routeFunc: Function = (req:neutrinoRequest,res:neutrinoResponse)=>{res.write(page404)},methods: string[]=["GET"]){
 
         this._app = app;
-        let lastFound = this._app.findLastCommon(mainRoute,this._app._route)
-        this._mainRoute = this._app.continueConstruction(lastFound,mainRoute)
+        let lastFound = this._app._findLastCommon(mainRoute,this._app._route)
+        this._mainRoute = this._app._continueConstruction(lastFound,mainRoute)
         
 
         this._mainRoute.methodsFuncs = this._mainRoute.populateMethodsFuncs(routeFunc,methods)
@@ -700,7 +700,7 @@ class Router{
         INPUT URL(ROUTE)   
 
     */
-    findLastCommon(route: string, mainRoute: Route): Route {
+    _findLastCommon(route: string, mainRoute: Route): Route {
         let urls  = route.split("/");
         let curr = mainRoute;
 
@@ -722,7 +722,7 @@ class Router{
         }
     
     // ADD ROUTES TO THE TREE SO IT CANNED BE PARSED TO GET THR URL 
-    continueConstruction(lastRoute: Route,url: string): Route{
+    _continueConstruction(lastRoute: Route,url: string): Route{
 
         const lastFoundidx = lastRoute.fullRoute.split('/').length;
         let urls = url.split('/');
@@ -763,8 +763,8 @@ class Router{
             let mainRoute = this._mainRoute;
         
             if (mainRoute != null){
-                let lastCommonRoute = this.findLastCommon(url,mainRoute);
-                let finalRoute = this.continueConstruction(lastCommonRoute,url);
+                let lastCommonRoute = this._findLastCommon(url,mainRoute);
+                let finalRoute = this._continueConstruction(lastCommonRoute,url);
 
 
                 finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc,methods)
@@ -772,8 +772,8 @@ class Router{
             
             }else{
 
-                let lastCommonRoute = this.findLastCommon(url,this._mainRoute.dynamicRoute);
-                let finalRoute = this.continueConstruction(lastCommonRoute,url);
+                let lastCommonRoute = this._findLastCommon(url,this._mainRoute.dynamicRoute);
+                let finalRoute = this._continueConstruction(lastCommonRoute,url);
 
                 finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc,methods)
 
@@ -948,7 +948,7 @@ class Neutrino{
         INPUT URL(ROUTE)   
 
     */
-    findLastCommon(route:string,mainRoute: Route): Route{
+    _findLastCommon(route:string,mainRoute: Route): Route{
         let urls  = route.split("/");
         let curr = mainRoute;
 
@@ -970,7 +970,7 @@ class Neutrino{
     }
     
      // ADD ROUTES TO THE TREE SO IT CANNED BE PARSED TO GET THR URL 
-    continueConstruction(lastRoute: Route,url: string): Route{
+    _continueConstruction(lastRoute: Route,url: string): Route{
 
         const lastFoundidx = lastRoute.fullRoute.split('/').length;
 
@@ -1028,8 +1028,8 @@ class Neutrino{
 
         }else if(mainRoute != null) {
             
-            let lastCommonRoute = this.findLastCommon(url,mainRoute);
-            let finalRoute = this.continueConstruction(lastCommonRoute,url);
+            let lastCommonRoute = this._findLastCommon(url,mainRoute);
+            let finalRoute = this._continueConstruction(lastCommonRoute,url);
 
             finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc,methods)
             newRoute =  finalRoute
@@ -1037,8 +1037,8 @@ class Neutrino{
 
         }else if (this._mainDynammic != null){
             
-            let lastCommonRoute = this.findLastCommon(url,this._mainDynammic);
-            let finalRoute = this.continueConstruction(lastCommonRoute,url);
+            let lastCommonRoute = this._findLastCommon(url,this._mainDynammic);
+            let finalRoute = this._continueConstruction(lastCommonRoute,url);
 
             finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc,methods)
 
@@ -1080,7 +1080,7 @@ class Neutrino{
             }catch(err){
                 // console.error(err)
                 
-                this._logger.logError(err)
+                await this._logger.logError(err)
                 response.statusCode = 500;
                 await response.end()
             }
@@ -1097,7 +1097,7 @@ class Neutrino{
 
             }catch(err){
                 // console.error(err)
-                this._logger.logError(err)
+                await this._logger.logError(err)
 
                 response.statusCode = 500;
                 await response.end()
@@ -1106,7 +1106,7 @@ class Neutrino{
              
         }} 
         catch(err){
-            this._logger.logError(err)
+            await this._logger.logError(err)
 
             // console.error(err)
         }
@@ -1164,7 +1164,7 @@ class Neutrino{
 
         }catch(err){
             // console.error(err)
-            this._logger.logError(err)
+            await this._logger.logError(err)
 
             if(!response.writableEnded){
                 response.setStatusCode(500)
@@ -1208,7 +1208,7 @@ class Neutrino{
     
             }catch (error){
 
-                this._logger.logError(error)
+                await this._logger.logError(error)
                 response.setStatusCode(500)
             }
             
