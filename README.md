@@ -256,3 +256,14 @@ let yourLogMessage = "Hello Wordld!"
 app.log(yourLogMessage)
 }) 
 ```
+
+#### Adding Security Measures Using Helmet   
+```javascript
+const Neutrino = require("./neutrino")
+const app = new  Neutrino()
+app.addroute('/main',(request,response) =>{
+
+let allowedDoamins = ["add","your","domains"]
+app.addStrictSecruityMeasures(yourLogMessage)
+}) 
+```
