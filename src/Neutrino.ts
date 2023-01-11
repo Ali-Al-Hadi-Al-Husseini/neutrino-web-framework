@@ -877,6 +877,9 @@ class Neutrino{
     addAfterWare(afterware: Function): void{
         this._afterware.addWare(afterware)
     }
+    log(msg:string){
+        this._logger.log(msg)
+    }
     disableLogging(): void{
         this._logger.enabled = false
     }

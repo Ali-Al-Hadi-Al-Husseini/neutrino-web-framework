@@ -740,6 +740,9 @@ class Neutrino {
     addAfterWare(afterware) {
         this._afterware.addWare(afterware);
     }
+    log(msg) {
+        this._logger.log(msg);
+    }
     disableLogging() {
         this._logger.enabled = false;
     }
@@ -763,7 +766,7 @@ class Neutrino {
         this._rateLimiter.setLimit(maxRequest, timePeriod);
         this._middlewares.insertWare(this._rateLimiter.rateLimit.bind(this._rateLimiter), 0);
     }
-    resetLimit(maxRequest, timePeriod) {
+    resetRateLimit(maxRequest, timePeriod) {
         this._rateLimiter.setLimit(maxRequest, timePeriod);
     }
     addStrictSecruityMeasures(allowedDomains) {
