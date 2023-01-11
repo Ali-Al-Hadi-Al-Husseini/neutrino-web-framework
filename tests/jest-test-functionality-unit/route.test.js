@@ -117,7 +117,7 @@ test('addChild adds child to children array', () => {
     
     });
     
-    test('compareRoutes returns correct route and dynamic parts', () => {
+    test('compareRoutes returns correct route and dynamic parts', async () => {
 
     const child1 = new Route('/child1', () => {});
     const child2 = new Route('/child2', () => {});
@@ -131,9 +131,9 @@ test('addChild adds child to children array', () => {
         route.addChild(child1);
         route.addChild(dynamicRoute);
     
-        expect(route.compareRoutes(route.fullRoute + '/child1',testReq)).toEqual(child1);
-        expect(route.compareRoutes(route.fullRoute + '/dynamic',testReq)).toEqual(dynamicRoute);
-        expect(route.compareRoutes(route.fullRoute + '/child1/child2',testReq)).toEqual(child2);
+        expect(await route.compareRoutes(route.fullRoute + '/child1',testReq)).toEqual(child1);
+        expect(await route.compareRoutes(route.fullRoute + '/dynamic',testReq)).toEqual(dynamicRoute);
+        expect(await route.compareRoutes(route.fullRoute + '/child1/child2',testReq)).toEqual(child2);
     
     }
     })
