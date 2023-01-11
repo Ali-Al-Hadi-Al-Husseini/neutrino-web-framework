@@ -977,11 +977,11 @@ class Neutrino {
                 this part handles three parts middlware, given fucnction
             g
             */
-            this._middlewares.startWares(request, response);
+            await this._middlewares.startWares(request, response);
             if (!response.writableEnded) {
                 await this.decideRequestFate(request, response, routeObj);
             }
-            this._afterware.startWares(request, response);
+            await this._afterware.startWares(request, response);
             // END TIME CAPTURING 
             await this._logger.mainlog(request, response, performance.now() - requestStart);
         }

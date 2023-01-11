@@ -80,7 +80,7 @@ const router = new Router(app,'/main',(req:any, res:any,) => {
 router.addroute("/profile", (req, res) => {
      res.write("<h1>Hello World </h1>");
  });// then the route would be /main/profile
-    // u ca
+    
 ```
 ###### Added a requirement for the router to have an app argument during initialization, as this makes it easier to import a single file into multiple files rather than importing multiple files into a single file, particularly if the router is located in a different file
 
@@ -207,8 +207,11 @@ app.addroute('/main',(request,response) =>{
 
 let maxRequests = 10
 let timePeriod = 60 // time in seconds
+let newMaxRequests = 7
+let newTimePeriod = 100// time in seconds
 
 app.addRateLimiting(maxRequests,timePeriod)
+app.resetRateLimit(newMaxRequests,newTimePeriod) // resets the rate limit
 }) 
 ```
 
