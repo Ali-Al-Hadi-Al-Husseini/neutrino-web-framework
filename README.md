@@ -207,6 +207,20 @@ app.addroute('/main',(request,response) =>{
 
 let maxRequests = 10
 let timePeriod = 60 // time in seconds
+
+
+app.addRateLimiting(maxRequests,timePeriod) // set nbr of limit of request for each ip
+}) 
+```
+
+#### Reseting Rate-limiting 
+```javascript
+const Neutrino = require("./neutrino")
+const app = new  Neutrino()
+app.addroute('/main',(request,response) =>{
+
+let maxRequests = 10
+let timePeriod = 60 // time in seconds
 let newMaxRequests = 7
 let newTimePeriod = 100// time in seconds
 
