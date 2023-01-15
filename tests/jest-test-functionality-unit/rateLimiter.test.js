@@ -1,3 +1,4 @@
+'use strict'
 const rateLimiter = require('../../build/Neutrino').rateLimiter;
 
 
