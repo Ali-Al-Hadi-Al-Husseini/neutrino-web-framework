@@ -1,3 +1,4 @@
+'use strict'
 const neutrinoRequest = require('../../build/Neutrino').neutrinoRequest;
 
 describe('neutrinoRequest', () => {
