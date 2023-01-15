@@ -1,3 +1,4 @@
+'use strict'
 const Route = require('../../build/Neutrino').Route;
 
 describe('Route', () => {
