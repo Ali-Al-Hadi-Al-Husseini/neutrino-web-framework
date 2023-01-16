@@ -125,7 +125,7 @@ async function readFile(path) {
 function corsMiddleware(allowedDomains) {
     const innerMethod = (req, res, next) => {
         res.setHeader('Access-Control-Allow-Origin', allowedDomains);
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE'); // should be changed
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.setHeader('Access-Control-Max-Age', '3600');
         next();
@@ -684,7 +684,7 @@ class Neutrino {
     constructor(port = 5500) {
         this._server = http.createServer({ ServerResponse: neutrinoResponse, IncomingMessage: neutrinoRequest });
         this._port = port;
-        this._404Route = new Route('', (req, res) => { res.sendHtml(this.get404()); });
+        this._404Route = new Route('', (req, res) => { res.sendHtml(this.get404()).bind(this); });
         this._route = new Route('', (req, res) => { res.sendHtml("<h1>Neutrino</h1>"); });
         this._mainDynammic = null;
         this._routesobjs = { '/': this._route };
@@ -696,16 +696,16 @@ class Neutrino {
         this.staticFilesRoute();
     }
     get(route, routefunc) {
-        this.addroute(route, routefunc, ['GET']);
+        this.addRoute(route, routefunc, ['GET']);
     }
     post(route, routefunc) {
-        this.addroute(route, routefunc, ['POST']);
+        this.addRoute(route, routefunc, ['POST']);
     }
     put(route, routefunc) {
-        this.addroute(route, routefunc, ['PUT']);
+        this.addRoute(route, routefunc, ['PUT']);
     }
     delete(route, routefunc) {
-        this.addroute(route, routefunc, ['DELETE']);
+        this.addRoute(route, routefunc, ['DELETE']);
     }
     // THIS METHODS CHANGES THE DEFAULT 404
     set404(html) {
@@ -851,7 +851,7 @@ class Neutrino {
         return curr;
     }
     // ADDS ROUTES OBJECT TO THE TREE
-    addroute(url, routeFunc, methods = ["GET"]) {
+    addRoute(url, routeFunc, methods = ["GET"]) {
         const urls = url.split('/');
         let mainRoute = this._route;
         let newRoute = this._404Route;
@@ -893,10 +893,7 @@ class Neutrino {
         try {
             if (route == null) {
                 // page not found error 404 error 
-                response.statusCode = 404;
-                // console.log("response on " + request.url + " failed")
-                await response.write(this._default404);
-                await response.end();
+                this._404Route.methodsFuncs['GET'](request, response);
             }
             else if (!route.methodsFuncs.hasOwnProperty(request.method)) {
                 //  method not allowed 405 error 
@@ -1028,7 +1025,7 @@ class Neutrino {
                 response.setStatusCode(500);
             }
         };
-        this.addroute('/static/<fileName>', staticRouteFunc);
+        this.addRoute('/static/<fileName>', staticRouteFunc);
     }
 }
 /*
