@@ -831,16 +831,16 @@ class Neutrino{
         this.staticFilesRoute()
     }
     get(route: string, routefunc: Function): void{
-        this.addroute(route,routefunc,['GET'])
+        this.addRoute(route,routefunc,['GET'])
     }
     post(route: string, routefunc: Function): void{
-        this.addroute(route,routefunc,['POST'])
+        this.addRoute(route,routefunc,['POST'])
     }
     put(route: string, routefunc: Function): void{
-        this.addroute(route,routefunc,['PUT'])
+        this.addRoute(route,routefunc,['PUT'])
     }
     delete(route: string, routefunc: Function): void{
-        this.addroute(route,routefunc,['DELETE'])
+        this.addRoute(route,routefunc,['DELETE'])
     }
     // THIS METHODS CHANGES THE DEFAULT 404
     set404(html:string): void{
@@ -1005,7 +1005,7 @@ class Neutrino{
         return curr
     }
     // ADDS ROUTES OBJECT TO THE TREE
-    addroute(url: string, routeFunc:Function,methods: string[]= ["GET"]): void{
+    addRoute(url: string, routeFunc:Function,methods: string[]= ["GET"]): void{
 
         const urls = url.split('/');
         let mainRoute = this._route;
@@ -1214,7 +1214,7 @@ class Neutrino{
             
         }
         
-        this.addroute('/static/<fileName>',staticRouteFunc)
+        this.addRoute('/static/<fileName>',staticRouteFunc)
 
     }
 }
