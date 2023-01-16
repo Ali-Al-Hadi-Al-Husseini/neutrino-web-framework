@@ -891,7 +891,7 @@ class Neutrino{
         this._middlewares.currentWareIdx = this._middlewares.wares.length
     }
     skipAfterwares(): void{
-        this._afterware.currentWareIdx = this._middlewares.wares.length
+        this._afterware.currentWareIdx = this._afterware.wares.length
     }
     insertMiddleware(middlware:Function, idx:number): void{
         this._middlewares.insertWare(middlware,idx)
