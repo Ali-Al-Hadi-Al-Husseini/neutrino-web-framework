@@ -60,5 +60,18 @@ describe('Neutrino', () => {
     expect(neutrino._logger.enabled).toBe(true);
     });
 
+    test('should skip middlewares', () => {
+    neutrino._middlewares.wares = [jest.fn(), jest.fn(), jest.fn()];
+    neutrino.skipMiddlewares();
+    expect(neutrino._middlewares.currentWareIdx).toBe(3);
+    });
+
+    test('should skip afterwares', () => {
+
+    neutrino._afterware.wares = [jest.fn(), jest.fn(), jest.fn()];
+    neutrino.skipAfterwares();
+    expect(neutrino._afterware.currentWareIdx).toBe(3);
+
+    });
 
 })  
