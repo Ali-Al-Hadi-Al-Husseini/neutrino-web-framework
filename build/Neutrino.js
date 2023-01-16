@@ -754,7 +754,7 @@ class Neutrino {
         this._middlewares.currentWareIdx = this._middlewares.wares.length;
     }
     skipAfterwares() {
-        this._afterware.currentWareIdx = this._middlewares.wares.length;
+        this._afterware.currentWareIdx = this._afterware.wares.length;
     }
     insertMiddleware(middlware, idx) {
         this._middlewares.insertWare(middlware, idx);
