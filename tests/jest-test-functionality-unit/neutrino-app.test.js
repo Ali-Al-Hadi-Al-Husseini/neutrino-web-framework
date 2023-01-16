@@ -43,4 +43,22 @@ describe('Neutrino', () => {
       expect(neutrino._afterware.wares).toEqual([afterware1, afterware2]);
     });
 
+    test('should log a message', () => {
+    const spy = jest.spyOn(neutrino._logger, 'log');
+    neutrino.log('Test log message');
+    expect(spy).toHaveBeenCalledWith('Test log message');
+    });
+
+    test('should disable logging', () => {
+    neutrino.disableLogging();
+    expect(neutrino._logger.enabled).toBe(false);
+    });
+
+    test('should enable logging', () => {
+    neutrino.disableLogging();
+    neutrino.enableLogging();
+    expect(neutrino._logger.enabled).toBe(true);
+    });
+
+
 })  
