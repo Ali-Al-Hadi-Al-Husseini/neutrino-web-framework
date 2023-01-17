@@ -2,7 +2,7 @@ const request = require('supertest');
 const lib = require('../../build/Neutrino');
 const Neutrino = lib.Neutrino
 
-describe('Neutrino', () => {
+describe('test routing on neutrino', () => {
   let app;
 
   beforeEach(() => {
@@ -88,9 +88,9 @@ describe('Neutrino', () => {
     expect(response.text).toBe(`${expectedResponse} ${id}`);
   });
 
-//   test('should return 404 for non-existing route', async () => {
-//     const response = await request(app._server).get('/non-existing-route');
-//     expect(response.status).toBe(404);
-//     expect(response.text).toBe(app._default404);
-//   });
+  test('should return 404 for non-existing route', async () => {
+    const response = await request(app._server).get('/non-existing-route');
+    expect(response.status).toBe(404);
+    expect(response.text).toBe(app._default404);
+  });
 });
