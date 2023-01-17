@@ -506,6 +506,9 @@ class neutrinoResponse extends ServerResponseClass {
         this.setHeader('Content-Type', 'text/html');
         await this.write(html);
     }
+    async send(txt) {
+        await this.write(txt);
+    }
     send404() {
         this.setStatusCode(404);
     }
@@ -518,6 +521,7 @@ class neutrinoRequest extends IncomingMessageClass {
     path;
     cookies;
     dynamicParts;
+    
     constructor(socket) {
         super(socket);
         this.params = {};
