@@ -38,5 +38,33 @@ describe('Neutrino', () => {
     expect(response.text).toBe(`User id: ${userId}`);
   });
 
+  test('should handle different http methods', async () => {
+    const route = '/test-route';
+    const expectedGetResponse = 'Hello from test route!';
+    const expectedPostResponse = 'Post request to test route';
+    app.addRoute(route, (req, res) => {
+      res.send(expectedGetResponse);
+    }, ['GET']);
+
+    app.addRoute(route, (req, res) => {
+      res.send(expectedPostResponse + "!");
+    }, ['POST']);
+
+    const getResponse = await request(app._server).get(route);
+    expect(getResponse.status).toBe(200);
+    expect(getResponse.text).toBe(expectedGetResponse);
+
+    const postResponse = await request(app._server).post(route);
+    expect(postResponse.status).toBe(200);
+    expect(postResponse.text).toBe(expectedPostResponse + "!");
+  });
+
+  test('should add route for multiple methods', async () => {
+    const route = '/test-route';
+    const expectedResponse = 'Hello from test route!';
+    app.addRoute(route, (req, res) => {
+      res.send(expectedResponse);
+    }, ['GET', 'POST']);
+
 
 });
