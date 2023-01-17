@@ -582,6 +582,7 @@ class neutrinoResponse extends ServerResponseClass{
             'Content-Type', 'text/html'
         );
         await this.write(html);        
+        await this.end()
     }
     async send(txt:string){
         await this.write(txt)
@@ -817,7 +818,7 @@ class Neutrino{
         this._server = http.createServer({ ServerResponse: neutrinoResponse ,IncomingMessage : neutrinoRequest});
         this._port   = port;
 
-        this._404Route = new Route('',(req:neutrinoResponse,res:neutrinoRequest)=>{res.sendHtml(this.get404()).bind(this)})
+        this._404Route = new Route('',(req:neutrinoResponse,res:neutrinoRequest)=>{res.setStatusCode(404) ; res.sendHtml(this.get404()).bind(this)})
         this._route = new Route('',(req:neutrinoResponse,res:neutrinoRequest)=>{res.sendHtml("<h1>Neutrino</h1>")});
 
         this._mainDynammic = null
