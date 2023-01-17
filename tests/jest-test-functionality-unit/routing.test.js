@@ -66,5 +66,31 @@ describe('Neutrino', () => {
       res.send(expectedResponse);
     }, ['GET', 'POST']);
 
+    let response = await request(app._server).get(route);
+    expect(response.status).toBe(200);
+    expect(response.text).toBe(expectedResponse);
 
+    response = await request(app._server).post(route);
+    expect(response.status).toBe(200);
+    expect(response.text).toBe(expectedResponse);
+  });
+
+  test('should add dynamic route', async () => {
+    const route = '/test-route/<id>';
+    const expectedResponse = 'Hello from test route with id!';
+    app.addRoute(route, (req, res) => {
+      res.write(`${expectedResponse} ${req.dynamicParts.id}`);
+    });
+
+    const id = '123';
+    const response = await request(app._server).get(`/test-route/${id}`);
+    expect(response.status).toBe(200);
+    expect(response.text).toBe(`${expectedResponse} ${id}`);
+  });
+
+//   test('should return 404 for non-existing route', async () => {
+//     const response = await request(app._server).get('/non-existing-route');
+//     expect(response.status).toBe(404);
+//     expect(response.text).toBe(app._default404);
+//   });
 });
