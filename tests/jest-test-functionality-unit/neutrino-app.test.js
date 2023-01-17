@@ -1,6 +1,8 @@
 'use strict'
+const { application } = require('express');
 const lib = require('../../build/Neutrino');
 const Neutrino = lib.Neutrino
+const request = require('supertest');
 
 describe('Neutrino', () => {
     let neutrino;
@@ -73,5 +75,21 @@ describe('Neutrino', () => {
     expect(neutrino._afterware.currentWareIdx).toBe(3);
 
     });
+
+    test('should add rate limiting', async () => {
+        await neutrino.start()
+        const maxRequest = 10;
+        const timePeriod = 60; // in seconds
+        neutrino.addRateLimiting(maxRequest, timePeriod);
+    
+        // Send more than the allowed number of requests
+        for (let i = 0; i < maxRequest + 1; i++) {
+          await request(neutrino._server).get('/');
+        }
+    
+        const response = await request(neutrino._server).get('/');
+        expect(response.status).toBe(429);
+        neutrino._server.close();
+      });
 
 })  
