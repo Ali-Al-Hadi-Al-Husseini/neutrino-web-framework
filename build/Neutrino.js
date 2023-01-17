@@ -505,6 +505,7 @@ class neutrinoResponse extends ServerResponseClass {
     async sendHtml(html) {
         this.setHeader('Content-Type', 'text/html');
         await this.write(html);
+        await this.end();
     }
     async send(txt) {
         await this.write(txt);
@@ -521,7 +522,6 @@ class neutrinoRequest extends IncomingMessageClass {
     path;
     cookies;
     dynamicParts;
-    
     constructor(socket) {
         super(socket);
         this.params = {};
@@ -688,7 +688,7 @@ class Neutrino {
     constructor(port = 5500) {
         this._server = http.createServer({ ServerResponse: neutrinoResponse, IncomingMessage: neutrinoRequest });
         this._port = port;
-        this._404Route = new Route('', (req, res) => { res.sendHtml(this.get404()).bind(this); });
+        this._404Route = new Route('', (req, res) => { res.setStatusCode(404) ; res.sendHtml(this.get404()).bind(this)});
         this._route = new Route('', (req, res) => { res.sendHtml("<h1>Neutrino</h1>"); });
         this._mainDynammic = null;
         this._routesobjs = { '/': this._route };
