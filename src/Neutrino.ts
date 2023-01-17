@@ -583,7 +583,9 @@ class neutrinoResponse extends ServerResponseClass{
         );
         await this.write(html);        
     }
-    
+    async send(txt:string){
+        await this.write(txt)
+    }
     send404(){
         this.setStatusCode(404)
     }
