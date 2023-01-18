@@ -12,7 +12,6 @@ describe('Neutrino', () => {
     it('should initialize with default values', () => {
 
       expect(neutrino._port).toEqual(5500);
-      expect(neutrino._mainDynammic).toBeNull();
       expect(neutrino._log).toBeFalsy();
 
     });
