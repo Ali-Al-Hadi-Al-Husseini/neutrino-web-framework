@@ -14,7 +14,7 @@ const app = new  Neutrino() // intalizing  a port now is optional
 const Neutrino = require("./neutrino")
 const app = new  Neutrino()
 
-app.addroute("/main", (req, res) => {
+app.addRoute("/main", (req, res) => {
      res.write("<h1>Hello World </h1>");
  });
  
@@ -24,7 +24,7 @@ app.addroute("/main", (req, res) => {
 const Neutrino = require("./neutrino")
 const app = new  Neutrino()
 
-app.addroute("/<name>", (req, res,dynamicParts) => {
+app.addRoute("/<name>", (req, res,dynamicParts) => {
      res.write("<h1>Hello "+ dynamicParts.name + "</h1>");
  });//priority is always givin to None dynamic  routes
     
@@ -34,10 +34,10 @@ app.addroute("/<name>", (req, res,dynamicParts) => {
 const Neutrino = require("./neutrino")
 const app = new  Neutrino()
 
-app.addroute("/main", (req, res) => {
+app.addRoute("/main", (req, res) => {
      res.write("<h1>Hello World </h1>");
  });
- app.addroute("/main", (req, res) => {
+ app.addRoute("/main", (req, res) => {
      res.write("<h1>Hello World !</h1>");
  });
 ```
@@ -48,7 +48,7 @@ app.addroute("/main", (req, res) => {
 const Neutrino = require("./neutrino")
 const app = new  Neutrino()
 
-app.addroute("/main", (req, res) => {
+app.addRoute("/main", (req, res) => {
      res.write("<h1>Hello World </h1>");
  },["GET","POST"]);
  
@@ -77,7 +77,7 @@ const app = new  Neutrino()
 const router = new Router(app,'/main',(req:any, res:any,) => {
        res.write("<h1>Hello World </h1>");
      })
-router.addroute("/profile", (req, res) => {
+router.addRoute("/profile", (req, res) => {
      res.write("<h1>Hello World </h1>");
  });// then the route would be /main/profile
     
@@ -153,7 +153,7 @@ app.addAfterWare(afterware)
 ```javascript
 const Neutrino = require("./neutrino")
 const app = new  Neutrino()
-app.addroute('/main',(request,response) =>{
+app.addRoute('/main',(request,response) =>{
 
 request.ip // returns the ip-addres of the request
 request.cookies// returns the cookies of the request
@@ -168,7 +168,7 @@ request.method// returns the method of the request
 ```javascript
 const Neutrino = require("./neutrino")
 const app = new  Neutrino()
-app.addroute('/main',(request,response) =>{
+app.addRoute('/main',(request,response) =>{
 
 let javascriptObject = {'first':1,'2nd':2}
 let path = '\\static\\main.ejs'
@@ -194,7 +194,7 @@ response.sendHtml(html)// take one argument text/html and writes the html to the
 ```javascript
 const Neutrino = require("./neutrino")
 const app = new  Neutrino()
-app.addroute('/main',(request,response) =>{
+app.addRoute('/main',(request,response) =>{
 
 app.addStaticPath('path\\to\\static\\folder')
 }) 
@@ -203,7 +203,7 @@ app.addStaticPath('path\\to\\static\\folder')
 ```javascript
 const Neutrino = require("./neutrino")
 const app = new  Neutrino()
-app.addroute('/main',(request,response) =>{
+app.addRoute('/main',(request,response) =>{
 
 let maxRequests = 10
 let timePeriod = 60 // time in seconds
@@ -217,7 +217,7 @@ app.addRateLimiting(maxRequests,timePeriod) // set nbr of limit of request for e
 ```javascript
 const Neutrino = require("./neutrino")
 const app = new  Neutrino()
-app.addroute('/main',(request,response) =>{
+app.addRoute('/main',(request,response) =>{
 
 let maxRequests = 10
 let timePeriod = 60 // time in seconds
@@ -238,7 +238,7 @@ app.resetRateLimit(newMaxRequests,newTimePeriod) // resets the rate limit
 ```javascript
 const Neutrino = require("./neutrino")
 const app = new  Neutrino()
-app.addroute('/main',(request,response) =>{
+app.addRoute('/main',(request,response) =>{
 
 app.enableLogging()// activates logging
 aap.disableLogging() // diables logging
@@ -250,7 +250,7 @@ aap.disableLogging() // diables logging
 ```javascript
 const Neutrino = require("./neutrino")
 const app = new  Neutrino()
-app.addroute('/main',(request,response) =>{
+app.addRoute('/main',(request,response) =>{
 
 let yourLogMessage = "Hello Wordld!"
 app.log(yourLogMessage)
@@ -261,7 +261,7 @@ app.log(yourLogMessage)
 ```javascript
 const Neutrino = require("./neutrino")
 const app = new  Neutrino()
-app.addroute('/main',(request,response) =>{
+app.addRoute('/main',(request,response) =>{
 
 let allowedDoamins = ["add","your","domains"]
 app.addStrictSecruityMeasures(yourLogMessage)
