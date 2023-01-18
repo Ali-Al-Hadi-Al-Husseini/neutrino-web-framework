@@ -433,7 +433,7 @@ class Route{
     }
     addChild(child:Route): void{
         if(child.route[1] === '<'){
-            this.dynamicRoute = child;
+            this.setDynamicRoute(child);
 
         }else{
             child.setParent(this)
@@ -805,7 +805,7 @@ class Neutrino{
 
     _404Route: Route
     _default404:string;
-    _mainDynammic:Route | null;
+    // _mainDynammic:Route | null;
     _middlewares: middleWare
     _afterware: afterWare
     _logger: logger
@@ -821,7 +821,7 @@ class Neutrino{
         this._404Route = new Route('',(req:neutrinoResponse,res:neutrinoRequest)=>{res.setStatusCode(404) ; res.sendHtml(this.get404()).bind(this)})
         this._route = new Route('',(req:neutrinoResponse,res:neutrinoRequest)=>{res.sendHtml("<h1>Neutrino</h1>")});
 
-        this._mainDynammic = null
+        // this._mainDynammic = null
         this._routesobjs = {'/': this._route}
 
         this._logger = new logger()
@@ -956,8 +956,8 @@ class Neutrino{
     */
     _findLastCommon(route:string,mainRoute: Route): Route{
         let urls  = route.split("/");
-        let curr = mainRoute;
-
+        let curr = mainRoute;  
+        urls.shift()
 
         for(let url of urls){
             url  = '/' + url
@@ -1022,12 +1022,14 @@ class Neutrino{
             for(const method of methods){
                 newRoute.methodsFuncs[method] = routeFunc
             }
-        }else if(urls.length <= 2 && urls[1][0] == '<'){
+        }
+        // else if(urls.length <= 2 && urls[1][0] == '<'){
 
-            this._mainDynammic = new Route(urls[1],routeFunc,methods)
-            newRoute =  this._mainDynammic 
+        //     this._route.setDynamicRoute(new Route(urls[1],routeFunc,methods))
 
-        }else if(urls.length <= 2){
+        // }
+        
+        else if(urls.length <= 2){
             let newMainRoute = new Route(url,routeFunc,methods);
             newRoute =  newMainRoute
             this._route.addChild(newMainRoute);
@@ -1041,17 +1043,18 @@ class Neutrino{
             newRoute =  finalRoute
 
 
-        }else if (this._mainDynammic != null){
-            
-            let lastCommonRoute = this._findLastCommon(url,this._mainDynammic);
-            let finalRoute = this._continueConstruction(lastCommonRoute,url);
-
-            finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc,methods)
-
-            this._mainDynammic.addChild(finalRoute)
-            newRoute =  finalRoute
-
         }
+        // else if (this._route.dynamicRoute != null){
+            
+        //     let lastCommonRoute = this._findLastCommon(url,this._route.dynamicRoute);
+        //     let finalRoute = this._continueConstruction(lastCommonRoute,url);
+
+        //     finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc,methods)
+
+        //     this._route.dynamicRoute.addChild(finalRoute)
+        //     newRoute =  finalRoute
+
+        // }
         this._routesobjs[url] = newRoute
     }
 
@@ -1148,9 +1151,9 @@ class Neutrino{
         }else{
             routeObj  = await this._route.compareRoutes(url,request)
         }
-        if(routeObj == null &&  this._mainDynammic != null ){
-            routeObj = await this._mainDynammic.compareRoutes(url,request)
-        }
+        // if(routeObj == null &&  this._mainDynammic != null ){
+        //     routeObj = await this._mainDynammic.compareRoutes(url,request)
+        // }
 
         /*
             this part handles three parts middlware, given fucnction 
