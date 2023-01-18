@@ -8,8 +8,6 @@ class testServer(unittest.TestCase):
         test_cases = [
                     ('/','<h1>Neutrino</h1>'),
                     ('/me','||||||||||||||||||||||||||||||'),
-                    ('/me',"<h1>changed</h1>"),
-                    ('/me',"<h1>changed 2 </h1>"),
                     ('/me/john',"||||||||||||||" + "john"+ "||||||||||||||||"),
                     # ('/me/ali',"<h1>ALi is  here" + "alllllllll" + ' </h1>'     ),
                     ('/hola',"<h1>ALi is  here " + 'hola' + ' </h1>'),
