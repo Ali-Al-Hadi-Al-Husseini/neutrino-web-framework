@@ -781,18 +781,13 @@ class Neutrino {
             X-Frame-Options: SAMEORIGIN: Prevents your app from being embedded in a frame or iframe on another site, which could allow clickjacking attacks.
             X-XSS-Protection: 1; mode=block: Enables the browser's built-in XSS protection.
         */
-        this.use(helmet());
-        this.use(helmet.dnsPrefetchControl());
-        this.use(helmet.expectCt());
-        this.use(helmet.hidePoweredBy());
-        this.use(helmet.hsts({ maxAge: 31536000 }));
-        this.use(helmet.ieNoOpen());
-        this.use(helmet.noSniff());
-        this.use(helmet.permittedCrossDomainPolicies());
-        this.use(helmet.xssFilter());
-        this.use(helmet.cacheControl({
-            noCache: true, // disable caching
+        this.use(helmet({
+            maxAge: 31536000,
+            immutable: true,
+            noCache: false,
+            noStore: false
         }));
+
         this.setAllowedDomains(allowedDomains);
     }
     setAllowedDomains(allowedDomains) {
