@@ -264,6 +264,6 @@ const app = new  Neutrino()
 app.addRoute('/main',(request,response) =>{
 
 let allowedDoamins = ["add","your","domains"]
-app.addStrictSecruityMeasures(yourLogMessage)
+app.addStrictSecruityMeasures(allowedDoamins)
 }) 
 ```
