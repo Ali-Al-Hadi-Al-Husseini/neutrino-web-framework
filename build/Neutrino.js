@@ -751,6 +751,12 @@ class Neutrino {
         this._logger.enabled = false;
     }
     enableLogging() {
+        if (!this._routesobjs.hasOwnProperty('/ct-report')) {
+            this.post('/ct-report', (req, res) => {
+                this._logger.logError(req.body);
+                res.write('CT failure report received and processed');
+            });
+        }
         _logger = this._logger;
         this._logger.enabled = true;
     }
