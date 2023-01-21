@@ -887,6 +887,13 @@ class Neutrino{
         this._logger.enabled = false
     }
     enableLogging(): void{
+
+        if (!this._routesobjs.hasOwnProperty('/ct-report')){
+            this.post('/ct-report', (req:neutrinoRequest, res:neutrinoResponse) => {
+                this._logger.logError(req.body)
+                res.write('CT failure report received and processed');
+            });
+    }
         _logger = this._logger
         this._logger.enabled = true
     }
