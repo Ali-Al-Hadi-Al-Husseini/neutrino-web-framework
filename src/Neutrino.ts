@@ -911,26 +911,48 @@ class Neutrino{
         this._rateLimiter.setLimit(maxRequest, timePeriod)
     }
     addStrictSecruityMeasures(allowedDomains: string[]): void{
+        // this method doesn't fit all apps need u may have to change some optionss
+        // to obtain the most security 
+        /*
+            helmet(): This middleware sets various HTTP headers to help protect your app from some well-known web vulnerabilities by setting the following HTTP headers:
+            X-Content-Type-Options: nosniff: Prevents browser from trying to guess the MIME type of a file and using it in the event that the server doesn't specify one.
+            X-DNS-Prefetch-Control: off: Prevents DNS prefetching by the browser, which can leak information about your app's structure and third-party requests.
+            X-Frame-Options: SAMEORIGIN: Prevents your app from being embedded in a frame or iframe on another site, which could allow clickjacking attacks.
+            X-XSS-Protection: 1; mode=block: Enables the browser's built-in XSS protection.
+        */
 
-    /* 
-        helmet(): This middleware sets various HTTP headers to help protect your app from some well-known web vulnerabilities by setting the following HTTP headers:
-        X-Content-Type-Options: nosniff: Prevents browser from trying to guess the MIME type of a file and using it in the event that the server doesn't specify one.
-        X-DNS-Prefetch-Control: off: Prevents DNS prefetching by the browser, which can leak information about your app's structure and third-party requests.
-        X-Frame-Options: SAMEORIGIN: Prevents your app from being embedded in a frame or iframe on another site, which could allow clickjacking attacks.
-        X-XSS-Protection: 1; mode=block: Enables the browser's built-in XSS protection.
-    */
-        this.use(helmet({
-            maxAge: 31536000,
-            immutable: true,
-            noCache: false,
-            noStore: false
-        }));
-
-        this.setAllowedDomains(allowedDomains)
-        
-    }
+            this.use(helmet.crossOriginOpenerPolicy({
+                sameOrigin: true,
+                allowUnsafeNone: false
+            }));
+            this.use(helmet.crossOriginResourcePolicy({
+                policy: 'same-origin'
+              }));
+            this.use(helmet.dnsPrefetchControl({
+                allow: false
+              }));
+            this.use(helmet.expectCt(
+                {
+                    maxAge: 30,
+                    enforce: true,
+                    reportUri: '/ct-report'
+                }));
+            this.use(helmet.frameguard());
+            this.use(helmet.hidePoweredBy());
+            this.use(helmet.hsts({ maxAge: 31536000 }));
+            this.use(helmet.ieNoOpen());
+            this.use(helmet.noSniff());
+            this.use(helmet.originAgentCluster());
+            this.use(helmet.permittedCrossDomainPolicies());
+            this.use(helmet.referrerPolicy());
+            this.use(helmet.xssFilter());
+            this.setAllowedDomains(allowedDomains);
+        }
+    
     setAllowedDomains(allowedDomains: string[]): void{
+        allowedDomains = ["'self'", ...allowedDomains]
         this._allowedDoamins = allowedDomains
+        
         this.use(helmet.frameguard({
             action: 'sameorigin',
             frameAncestors: allowedDomains
@@ -941,6 +963,10 @@ class Neutrino{
             styleSrc: ["'self'", 'maxcdn.bootstrapcdn.com',...allowedDomains]
         }
         }));
+        helmet.crossOriginEmbedderPolicy({
+            requireCorp: true,
+            allowedOrigins: allowedDomains
+          })
         this.use(corsMiddleware(allowedDomains))
     }
     /*
