@@ -842,15 +842,7 @@ class Neutrino {
             requireCorp: true,
             allowedOrigins: allowedDomains
         }));
-        this.use(helmet.cors({
-            origin: allowedDomains,
-            methods: ['GET', 'POST', 'PUT', 'DELETE'],
-            allowedHeaders: ['Content-Type', 'Authorization'],
-            exposedHeaders: ['Content-Range', 'X-Content-Range'],
-            credentials: true,
-            maxAge: 3600,
-            optionsSuccessStatus: 200
-        }));
+        this.use(corsMiddleware(allowedDomains));
     }
     /*
         
