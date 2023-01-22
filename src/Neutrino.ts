@@ -141,7 +141,7 @@ function corsMiddleware(allowedDomains:string[] ): Function {
 
     const innerMethod = (req:neutrinoRequest, res:neutrinoResponse,next: Function) => {
         res.setHeader('Access-Control-Allow-Origin', allowedDomains)
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');// should be changed
+        res.setHeader('Access-Control-Allow-Methods', `${Object.keys(req.routeObj.methodsFuncs).join(", ")}`);// should be changed
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.setHeader('Access-Control-Max-Age', '3600');
         next()
@@ -600,7 +600,7 @@ class neutrinoRequest extends IncomingMessageClass{
     path:string;
     cookies:Record<string,string>;
     dynamicParts:Record<string,string>
-    routeObj:Route | undefined
+    routeObj:Route | any
 
     constructor(socket:any){
         super(socket)
