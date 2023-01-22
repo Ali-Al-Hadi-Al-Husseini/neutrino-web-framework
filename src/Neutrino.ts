@@ -600,6 +600,7 @@ class neutrinoRequest extends IncomingMessageClass{
     path:string;
     cookies:Record<string,string>;
     dynamicParts:Record<string,string>
+    routeObj:Route | undefined
 
     constructor(socket:any){
         super(socket)
@@ -1104,6 +1105,8 @@ class Neutrino{
     // 
     async decideRequestFate(request: neutrinoRequest, response: neutrinoResponse,route: Route){
         try{
+            request.routeObj = route
+
         if ( route == null) {
             // page not found error 404 error 
             this._404Route.methodsFuncs['GET'](request,response)
