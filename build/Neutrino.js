@@ -804,16 +804,26 @@ class Neutrino {
             enforce: true,
             reportUri: '/ct-report'
         }));
-        this.use(helmet.frameguard());
         this.use(helmet.hidePoweredBy());
-        this.use(helmet.hsts({ maxAge: 31536000 }));
+        this.use(helmet.hsts({
+            maxAge: 15552000,
+            includeSubDomains: true,
+            preload: true,
+            setIf: function (req, res) {
+                return req.secure;
+            }
+        }));
         this.use(helmet.ieNoOpen());
         this.use(helmet.noSniff());
         this.use(helmet.originAgentCluster());
-        this.use(helmet.permittedCrossDomainPolicies());
-        this.use(helmet.referrerPolicy());
-        this.use(helmet.xssFilter());
+        this.use(helmet.permittedCrossDomainPolicies({
+            value: 'master-only'
+        }));
+        this.use(helmet.referrerPolicy({
+            policy: 'same-origin'
+        }));
         this.setAllowedDomains(allowedDomains);
+        this.use(helmet.xssFilter());
     }
     setAllowedDomains(allowedDomains) {
         allowedDomains = ["'self'", ...allowedDomains];
@@ -828,11 +838,19 @@ class Neutrino {
                 styleSrc: ["'self'", 'maxcdn.bootstrapcdn.com', ...allowedDomains]
             }
         }));
-        helmet.crossOriginEmbedderPolicy({
+        this.use(helmet.crossOriginEmbedderPolicy({
             requireCorp: true,
             allowedOrigins: allowedDomains
-        });
-        this.use(corsMiddleware(allowedDomains));
+        }));
+        this.use(helmet.cors({
+            origin: allowedDomains,
+            methods: ['GET', 'POST', 'PUT', 'DELETE'],
+            allowedHeaders: ['Content-Type', 'Authorization'],
+            exposedHeaders: ['Content-Range', 'X-Content-Range'],
+            credentials: true,
+            maxAge: 3600,
+            optionsSuccessStatus: 200
+        }));
     }
     /*
         
