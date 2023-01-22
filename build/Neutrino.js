@@ -522,6 +522,7 @@ class neutrinoRequest extends IncomingMessageClass {
     path;
     cookies;
     dynamicParts;
+    routeObj;
     constructor(socket) {
         super(socket);
         this.params = {};
@@ -930,6 +931,7 @@ class Neutrino {
     // 
     async decideRequestFate(request, response, route) {
         try {
+            request.routeObj = route;
             if (route == null) {
                 // page not found error 404 error 
                 this._404Route.methodsFuncs['GET'](request, response);
