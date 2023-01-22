@@ -810,9 +810,6 @@ class Neutrino {
             maxAge: 15552000,
             includeSubDomains: true,
             preload: true,
-            setIf: function (req, res) {
-                return req.secure;
-            }
         }));
         this.use(helmet.ieNoOpen());
         this.use(helmet.noSniff());
@@ -825,6 +822,9 @@ class Neutrino {
         }));
         this.setAllowedDomains(allowedDomains);
         this.use(helmet.xssFilter());
+        this.use((req, res, next) => {
+            res.setHeader('X-XSS-Protection', '1; mode=block');
+        });
     }
     setAllowedDomains(allowedDomains) {
         allowedDomains = ["'self'", ...allowedDomains];
