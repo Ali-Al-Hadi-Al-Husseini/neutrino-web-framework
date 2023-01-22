@@ -125,7 +125,7 @@ async function readFile(path) {
 function corsMiddleware(allowedDomains) {
     const innerMethod = (req, res, next) => {
         res.setHeader('Access-Control-Allow-Origin', allowedDomains);
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE'); // should be changed
+        res.setHeader('Access-Control-Allow-Methods', `${Object.keys(req.routeObj.methodsFuncs).join(", ")}`); // should be changed
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.setHeader('Access-Control-Max-Age', '3600');
         next();
