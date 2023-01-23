@@ -7,7 +7,10 @@ describe('Neutrino', () => {
   
     beforeEach(() => {
       app = new Neutrino();
-      app.start();
+      app.post('/',(req,res)=>{res.write("hello")})
+      app.addStrictSecruityMeasures(["self"])
+
+      app.start(9901);
     });
   
     afterEach(() => {
@@ -15,20 +18,21 @@ describe('Neutrino', () => {
     });
 
     test('should add strict security measures', async () => {
-        app.addStrictSecruityMeasures(["self"])
     
         let response = await request(app._server).get('/');
-        expect(response.headers['x-xss-protection']).toEqual('1; mode=block');
-        expect(response.headers['x-frame-options']).toEqual('sameorigin');
+        expect(response.headers['x-frame-options']).toEqual("SAMEORIGIN");
         expect(response.headers['x-content-type-options']).toEqual('nosniff');
         expect(response.headers['content-security-policy']).toBeDefined();
+        expect(response.headers['x-xss-protection']).toEqual('1; mode=block');
+
         expect(response.status).toBe(200);
     
         response = await request(app._server).post('/');
-        expect(response.headers['x-xss-protection']).toEqual('1; mode=block');
-        expect(response.headers['x-frame-options']).toEqual('sameorigin');
+        expect(response.headers['x-frame-options']).toEqual('SAMEORIGIN');
         expect(response.headers['x-content-type-options']).toEqual('nosniff');
         expect(response.headers['content-security-policy']).toBeDefined();
+        expect(response.headers['x-xss-protection']).toEqual('1; mode=block');
+
         expect(response.status).toBe(200);
       });
 
