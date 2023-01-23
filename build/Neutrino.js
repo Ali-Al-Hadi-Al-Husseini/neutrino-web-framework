@@ -824,6 +824,7 @@ class Neutrino {
         this.use(helmet.xssFilter());
         this.use((req, res, next) => {
             res.setHeader('X-XSS-Protection', '1; mode=block');
+            next()
         });
     }
     setAllowedDomains(allowedDomains) {
