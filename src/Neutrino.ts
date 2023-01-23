@@ -967,6 +967,7 @@ class Neutrino{
             this.use(helmet.xssFilter());
             this.use((req: neutrinoRequest, res: neutrinoResponse, next:Function) =>{
                 res.setHeader('X-XSS-Protection','1; mode=block')
+                next()
             })
         }
     
