@@ -53,7 +53,9 @@
 | TOTAL|640000|229|0|15413|517.1363610147285|0.0784734375|1095.7778310447559|467.0930389883959|157.20168445076277|436.4965765625|
 
 
-### According to tests conducted by me using Apache JMeter, the number of threads used in tests was between 1000-1500. My framework outperformed express by approximately 57%-45% (51% average). The servers used in the stress tests are listed in the stress tests folder.
+### According to tests conducted by me using Apache JMeter, the number of threads used in tests was between 1000-1200. My framework outperformed express by approximately 57%-45% (51% average). The servers used in the stress tests are listed in the stress tests folder.
+
+# Tests Done with 1500 thread in two groups one group with 10 loop count and other with 20 loop count 
 
 
 # Old Neutrino
