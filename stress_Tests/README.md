@@ -55,9 +55,14 @@
 
 ### According to tests conducted by me using Apache JMeter, the number of threads used in tests was between 1000-1200. My framework outperformed express by approximately 57%-45% (51% average). The servers used in the stress tests are listed in the stress tests folder.
 
-# Tests Done with 1500 thread in two groups one group with 10 loop count and other with 20 loop count 
 
-# Express Test result 
+
+
+----------------------------------------------------------------------------- 
+
+
+
+# Express Test result (1500 threads)
 | Label | #Samples | Average | Min | Max | Std. Dev. | Error% | Throughput | Received KB/sec | Sent Kb/sec | Avg. Bytes  |
 |-------|----------|---------|-----|-----|-----------|--------|------------|-----------------|-------------|-------------|
 | main|45000|1363|0|61412|3477.6209430130652|0.44733333333333336|88.58721115647651|111.1105518872521|7.697686514221201|1284.352488888889|
@@ -70,7 +75,9 @@
 | /me/dynamic|45000|1331|0|69027|3630.187115307808|0.44895555555555555|88.58738555001939|111.90197631997665|7.9611357142751675|1293.4982|
 | TOTAL|360000|1290|0|69027|3419.8329516317176|0.44826944444444444|708.6837380704904|891.3875347820995|60.85538427083826|1287.994611111111|
 
-# Neutrino Test result 
+
+
+# Neutrino Test result  (1500 threads)
 | Label | #Samples | Average | Min | Max | Std. Dev. | Error% | Throughput | Received KB/sec | Sent Kb/sec | Avg. Bytes  |
 |-------|----------|---------|-----|-----|-----------|--------|------------|-----------------|-------------|-------------|
 | main|45000|119|0|899|65.10608649857555|0.0|808.9305937550558|145.3547160653616|127.1853765571914|184.0
@@ -82,6 +89,8 @@
 | /me|45000|111|0|220|32.66796882299615|0.0|808.3638715240354|155.5153151271826|128.6751084554861|197.0
 | /me/dynamic|45000|111|0|219|32.685361277980384|0.0|808.4510078689232|157.90058747439906|131.8469905411232|200.0
 | TOTAL|360000|112|0|899|38.239454599662146|0.0|6458.441721533522|1219.6300467788521|1005.1895989935595|193.375
+
+### I conducted tests using Apache JMeter with 1500 threads, and my framework outperformed express by approximately 90% while maintaining 100% accuracy and zero errors. The servers used in the stress tests are listed in the stress tests folder.
 
 # Old Neutrino
 | Label | #Samples | Average | Min | Max | Std. Dev. | Error% | Throughput | Received KB/sec | Sent Kb/sec | Avg. Bytes  |
