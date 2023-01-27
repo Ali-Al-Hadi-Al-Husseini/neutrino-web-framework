@@ -32,16 +32,24 @@ describe('Neutrino', () => {
 
       const middleware1 = jest.fn();
       const middleware2 = jest.fn();
+      const middleware3 = jest.fn()
       const afterware1 = jest.fn();
       const afterware2 = jest.fn();
+      const afterware3 = jest.fn()
+
   
       neutrino.use(middleware1);
       neutrino.addMiddlWare(middleware2);
       neutrino.addAfterWare(afterware1);
       neutrino.addAfterWare(afterware2);
+      neutrino.insertMiddleware(middleware3,0)
+      neutrino.insertAfterware(afterware3,0)
   
-      expect(neutrino._middlewares.wares).toEqual([middleware1, middleware2]);
-      expect(neutrino._afterware.wares).toEqual([afterware1, afterware2]);
+      expect(neutrino._middlewares.wares).toEqual([middleware3,middleware1, middleware2]);
+      expect(neutrino._afterware.wares).toEqual([afterware3,afterware1, afterware2]);
+      expect(neutrino._middlewares.wares[0]).toBe(middleware3)
+      expect(neutrino._afterware.wares[0]).toBe(afterware3)
+
     });
 
     test('should log a message', () => {
