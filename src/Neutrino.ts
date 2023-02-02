@@ -141,9 +141,10 @@ function corsMiddleware(allowedDomains:string[] ): Function {
 
     const innerMethod = (req:neutrinoRequest, res:neutrinoResponse,next: Function) => {
         res.setHeader('Access-Control-Allow-Origin', allowedDomains)
-        res.setHeader('Access-Control-Allow-Methods', `${Object.keys(req.routeObj.methodsFuncs).join(", ")}`);// should be changed
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         res.setHeader('Access-Control-Max-Age', '3600');
+        res.setHeader('Access-Control-Allow-Methods', `${Object.keys(req.routeObj.methodsFuncs).join(", ")}`);
+
         next()
     }
     return innerMethod
