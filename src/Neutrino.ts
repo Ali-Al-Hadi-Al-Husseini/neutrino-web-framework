@@ -334,23 +334,24 @@ class logger{
 
     reqResData(req: neutrinoRequest,res: neutrinoResponse, timeTaken: Number): string {
 
-        return (
+    return (
             `=========================================================================
-            ----   logged on   ${new Date().toISOString()}  \n
-            ----   from the following ip =>   ${req.ip} \n
-            ----   recived a   req.method   request to url =>   ${req.url} \n
-            ----   request recived with follwoing cookies   ${JSON.stringify(req.cookies)}  \n
-            ----   response status   ${res.statusCode.toString()} \n
-            ----   response took   ${parseFloat(timeTaken.toFixed(2))}   milliseconds to process \n 
-            -------------------------------------------------------------------------\n`)
+----   logged on   ${new Date().toISOString()}
+----   from the following ip =>   ${req.ip}
+----   recived a   ${req.method}   request to url =>   ${req.url} 
+----   request recived with follwoing cookies   ${JSON.stringify(req.cookies)}
+----   response status   ${res.statusCode.toString()} 
+----   response took   ${parseFloat(timeTaken.toFixed(2))}   milliseconds to process 
+-------------------------------------------------------------------------\n`)
 
     }
     async logError(err: any){
         if(!this.enabled) return
         let errMsg =(
-        `----------------------------- Errors Log --------------------------------
-        ----${String(err)}  \n
-        -------------------------------------------------------------------------\n`)
+        `
+----------------------------- Errors Log --------------------------------
+----${String(err)}
+-------------------------------------------------------------------------\n`)
         
         await fs.appendFile(this.logFile, errMsg, (err:Error) => {
         if (err) console.error(err);
@@ -361,9 +362,10 @@ class logger{
     async log(logMessage: string){
         if(!this.enabled) return
         let develoerMessage = (
-            `---------------------------- Developer Logs---------------------------------
-            ----${logMessage}  \n
-            ----------------------------------------------------------------------------\n`)
+            `
+---------------------------- Developer Logs---------------------------------
+----${logMessage}
+----------------------------------------------------------------------------\n`)
 
             await fs.appendFile(this.logFile, develoerMessage, (err:Error) => {
                 if (err) console.error(err);
