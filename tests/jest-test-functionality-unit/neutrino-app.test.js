@@ -7,11 +7,11 @@ const request = require('supertest');
 describe('Neutrino', () => {
     let neutrino;
     beforeEach(() =>{
-        neutrino = new Neutrino()
+        neutrino = new Neutrino(4579)
     })
     it('should initialize with default values', () => {
 
-      expect(neutrino._port).toEqual(5500);
+      expect(neutrino._port).toEqual(4579);
       expect(neutrino._log).toBeFalsy();
 
     });
