@@ -275,7 +275,7 @@ class rateLimiter{
         this.timePeriod = 60
 
     }
-    rateLimit(req:neutrinoRequest, res:neutrinoResponse,next :Function): void {
+    async rateLimit(req:neutrinoRequest, res:neutrinoResponse,next :Function): Promise<void> {
         // Get the current time
         const now = Date.now();
         // Check if the client's IP address is in the rate limit cache
@@ -299,8 +299,8 @@ class rateLimiter{
         // If the request count is greater than the maximum allowed, return a rate limit exceeded error
         if (this.rateLimitCache[req.ip].requests > this.maxRequests) {
             res.setStatusCode(429)
-            res.write('Too many requests. Please try again later.');
-            res.end()
+            await res.write('Too many requests. Please try again later.');
+            await res.end()
 
         }
         // If the request count is within the limit, continue to the next middleware or handler
