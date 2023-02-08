@@ -893,9 +893,9 @@ class Neutrino{
     enableLogging(): void{
 
         if (!this._routesobjs.hasOwnProperty('/ct-report')){
-            this.post('/ct-report', (req:neutrinoRequest, res:neutrinoResponse) => {
+            this.post('/ct-report', async (req:neutrinoRequest, res:neutrinoResponse) => {
                 this._logger.logError(req.body)
-                res.write('CT failure report received and processed');
+                await res.write('CT failure report received and processed');
             });
     }
         _logger = this._logger
@@ -984,8 +984,8 @@ class Neutrino{
           }))
         this.use(helmet.contentSecurityPolicy({
         directives: {
-            defaultSrc: this._allowedDoamins != undefined ? this._allowedDoamins:["'self'"],
-            styleSrc: ["'self'", 'maxcdn.bootstrapcdn.com',...allowedDomains]
+            defaultSrc: this._allowedDoamins ,
+            styleSrc: ['maxcdn.bootstrapcdn.com', ...allowedDomains]
         }
         }));
         this.use(helmet.crossOriginEmbedderPolicy({
