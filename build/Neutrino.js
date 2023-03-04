@@ -11,7 +11,6 @@ const helmet = require('helmet');
 */
 const IncomingMessageClass = http.IncomingMessage;
 const ServerResponseClass = http.ServerResponse;
-//comp
 /*
 
     PAGES404 IS THE DEFAUKT RESULT THAT WILL APPEAR
@@ -72,19 +71,6 @@ const fileTypesToContentType = {
     START OF GLOBAL FUNCTION
 
 */
-//     // READS HTML FILE AND GIVES THE OUT AND CHANGES THE HEAD OF THE RESPONSE
-// function readhtmlfile(path: string,res: ServerResponse, logger: logger){
-//         try{
-//             res.writeHead(200, {
-//                 'Content-Type': 'text/html'
-//             });
-//             const data = fs.readFile(path,'utf8')
-//             return data
-//         }catch (error){
-//             logger.errorsLog += error + '\n'
-//             console.error(error)
-//         }
-//     }
 async function checkInStaticPaths(filename) {
     let neededFile = '';
     try {
@@ -693,7 +679,6 @@ class Neutrino {
         this._port = port;
         this._404Route = new Route('', (req, res) => { res.setStatusCode(404); res.sendHtml(this.get404()).bind(this); });
         this._route = new Route('', (req, res) => { res.sendHtml("<h1>Neutrino</h1>"); });
-        // this._mainDynammic = null
         this._routesobjs = { '/': this._route };
         this._logger = new logger();
         this._middlewares = new middleWare(this._logger);
@@ -887,8 +872,6 @@ class Neutrino {
                 continue;
             }
             newRoute = new Route("/" + route);
-            let fullRoute = newRoute.fullRoute;
-            // this._routesobjs[fullRoute] = newRoute
             curr.addChild(newRoute);
             curr = newRoute;
         }
@@ -907,9 +890,6 @@ class Neutrino {
                 newRoute.methodsFuncs[method] = routeFunc;
             }
         }
-        // else if(urls.length <= 2 && urls[1][0] == '<'){
-        //     this._route.setDynamicRoute(new Route(urls[1],routeFunc,methods))
-        // }
         else if (urls.length <= 2) {
             let newMainRoute = new Route(url, routeFunc, methods);
             newRoute = newMainRoute;
@@ -921,13 +901,6 @@ class Neutrino {
             finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc, methods);
             newRoute = finalRoute;
         }
-        // else if (this._route.dynamicRoute != null){
-        //     let lastCommonRoute = this._findLastCommon(url,this._route.dynamicRoute);
-        //     let finalRoute = this._continueConstruction(lastCommonRoute,url);
-        //     finalRoute.methodsFuncs = finalRoute.populateMethodsFuncs(routeFunc,methods)
-        //     this._route.dynamicRoute.addChild(finalRoute)
-        //     newRoute =  finalRoute
-        // }
         this._routesobjs[url] = newRoute;
     }
     // adding routes for a specfic method
@@ -942,7 +915,6 @@ class Neutrino {
             else if (!route.methodsFuncs.hasOwnProperty(request.method)) {
                 //  method not allowed 405 error 
                 response.statusCode = 405;
-                // console.log("a " + request.method + " request on "+ request.url + " not allowed ")
                 await response.write("method not allowed");
                 await response.end();
             }
@@ -953,10 +925,8 @@ class Neutrino {
                         response.statusCode = 200;
                     }
                     await response.end();
-                    // console.log("response sent to " + request.socket.remoteAddress)
                 }
                 catch (err) {
-                    // console.error(err)
                     await this._logger.logError(err);
                     response.statusCode = 500;
                     await response.end();
@@ -969,10 +939,8 @@ class Neutrino {
                         response.statusCode = 200;
                     }
                     await response.end();
-                    // console.log("response sent to " + request.socket.remoteAddress)
                 }
                 catch (err) {
-                    // console.error(err)
                     await this._logger.logError(err);
                     response.statusCode = 500;
                     await response.end();
@@ -981,7 +949,6 @@ class Neutrino {
         }
         catch (err) {
             await this._logger.logError(err);
-            // console.error(err)
         }
     }
     async handleRequest(request, response) {
